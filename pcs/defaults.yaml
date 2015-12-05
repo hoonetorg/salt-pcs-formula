@@ -1,0 +1,7 @@
+# -*- coding: utf-8 -*-
+# vim: ft=yaml
+pcs:
+  corosync_comm_prot: mcast
+  service: 
+    state: 'running'
+    enable: True

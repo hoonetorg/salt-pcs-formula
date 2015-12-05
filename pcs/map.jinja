@@ -1,0 +1,30 @@
+# -*- coding: utf-8 -*-
+# vim: ft=jinja
+
+{% import_yaml 'pcs/defaults.yaml' as default_settings %}
+
+{% set os_family_map = salt['grains.filter_by']({
+        'Debian': {
+            "pkg" : 'pcs',
+            "service" : {
+               "name": 'pcsd',
+            },
+        },
+        'RedHat': {
+            "pkg" : 'pcs',
+            "service" : {
+               "name": 'pcsd',
+            },
+        },
+  }
+  , grain="os_family"
+  , merge=salt['pillar.get']('pcs:lookup'))
+%}
+{% do default_settings.pcs.update(os_family_map) %}
+
+{% set pcs = salt['pillar.get'](
+        'pcs',
+        default=default_settings.pcs,
+        merge=True
+    )
+%}
