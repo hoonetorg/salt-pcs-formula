@@ -5,4 +5,4 @@
 
 pcs_install__pkg:
   pkg.installed:
-    - name: {{ pcs.pkg }}
+    - name: {{ pcs.pkgs }}

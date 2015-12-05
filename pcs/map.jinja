@@ -5,7 +5,11 @@
 
 {% set os_family_map = salt['grains.filter_by']({
         'Debian': {
-            "pkg" : 'pcs',
+            "pkgs" : 
+              [
+                'pcs',
+                'fence-agents-all',
+              ],
             "service" : {
                "name": 'pcsd',
                "state": 'running',
@@ -13,7 +17,11 @@
             },
         },
         'RedHat': {
-            "pkg" : 'pcs',
+            "pkgs" : 
+              [
+                'pcs',
+                'fence-agents-all',
+              ],
             "service" : {
                "name": 'pcsd',
                "state": 'running',
