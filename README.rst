@@ -1,5 +1,5 @@
 ================
-pacemaker-formula
+salt-pcs-formula
 ================
 
 A saltstack formula that can install pcs (pacemaker configuration system)
@@ -12,8 +12,8 @@ This includes creating resources.
     This module is a WIP. 
     Creating resources shouldn't break existing resources.
 
-Available moddule
-================
+Available modules
+=================
 
 .. contents::
     :local:
@@ -22,6 +22,17 @@ Available moddule
 ------------
 
 call pcs commands
+
+Available state modules
+=======================
+
+.. contents::
+    :local:
+
+``pcs``
+------------
+
+pcs commands for use in salt state files (sls)
 
 Available states
 ================
@@ -34,7 +45,7 @@ Available states
 
 Installs the pcs package, and starts the associated pcsd service.
 
-``pacemaker.resources``
+``pcs.resources``
 ------------
 
 Configures pacemaker resources.
