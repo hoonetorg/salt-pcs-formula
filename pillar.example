@@ -1,0 +1,3 @@
+pcs:
+  lookup:
+    corosync_comm_prot: mcast
