@@ -8,4 +8,4 @@ pcs_auth__auth:
     - nodes:  {{pcs.nodes}}
     - pcsuser: {{pcs.pcsuser|default('hacluster')}} 
     - pcspasswd: {{pcs.pcspasswd|default('hacluster')}}
-    - extra_args: {{pcs.pcspasswd|default([])}}
+    - extra_args: {{pcs.auth_extra_args|default([])}}
