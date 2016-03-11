@@ -100,3 +100,21 @@ def config_show():
     cmd = [ 'pcs',  'config',  'show'  ]
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+def cluster_node_add(node, extra_args = []):
+    '''
+    Add a node to the pacemaker cluster via pcs
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.cluster_node_add node=node2.example.org' \\
+                                      extra_args=[ '' ]
+    '''
+    cmd = [ 'pcs',  'cluster',  'node', 'add'  ]
+
+    cmd += [ node ]
+    cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)

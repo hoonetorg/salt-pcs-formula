@@ -131,14 +131,16 @@ def cluster_setup(name, nodes, pcsclustername='pcscluster', extra_args=[]):
     log.trace('Output of pcs.config_show: ' + str(config_show))
 
     for line in config_show['stdout'].splitlines():
-      key = line.split(':')[0].strip()
-      value = line.split(':')[1].strip()
-      if key in [ 'Cluster Name' ] and value in [ pcsclustername ]:
-        ret['comment'] += 'Node is already set up\n'
-      else:
-        setup_required = True
-        if __opts__['test']:
-          ret['comment'] += 'Node is set to set up\n'
+      if len(line.split(':')) in [ 2 ]:
+        key = line.split(':')[0].strip()
+        value = line.split(':')[1].strip()
+        if key in [ 'Cluster Name' ]: 
+          if value in [ pcsclustername ]:
+            ret['comment'] += 'Node is already set up\n'
+          else:
+            setup_required = True
+            if __opts__['test']:
+              ret['comment'] += 'Node is set to set up\n'
     
     if not setup_required:
       return ret
@@ -159,6 +161,7 @@ def cluster_setup(name, nodes, pcsclustername='pcscluster', extra_args=[]):
         setup_state = line.split(':')[1].strip()
         if node in nodes:
           setup_dict.update( { node : setup_state} )
+
     log.trace('setup_dict: ' + str(setup_dict))
 
     for node in nodes:
@@ -171,5 +174,89 @@ def cluster_setup(name, nodes, pcsclustername='pcscluster', extra_args=[]):
         if node in setup_dict:
           ret['comment'] += '{0}: setup_dict: {1}\n'.format(node,setup_dict[node],)
         ret['comment'] += str(setup)
+
+    log.trace('ret: ' + str(ret))
+
+    return ret
+
+def cluster_node_add(name, node, extra_args=[]):
+    '''
+    Add a node to the Pacemaker cluster via PCS
+    Should be run on one cluster node only 
+    (there may be races)
+    Can only be run on a already setup/added node
+
+    name
+        Irrelevant, not used (recommended: pcs_setup__node_add_{{node}})
+    node
+        node that should be added
+    extra_args
+        list of extra option for the \'pcs cluster node add\' command
+    '''
+
+    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+    result = {}
+    node_add_required = True
+    current_nodes = [] 
+
+    is_member_cmd = [ 'pcs', 'status', 'nodes', 'corosync', ]
+    is_member  = __salt__['cmd.run_all'](is_member_cmd, output_loglevel='trace', python_shell=False)
+    log.trace('Output of pcs status nodes corosync: ' + str(is_member))
+
+    for line in is_member['stdout'].splitlines():
+      if len(line.split(':')) in [ 2 ]:
+        key = line.split(':')[0].strip()
+        value = line.split(':')[1].strip()
+        if key in [ 'Offline', 'Online' ]:
+          if len(value.split()) > 0:
+            if node in value.split():
+              node_add_required = False
+              ret['comment'] += 'Node {0} is already member of the cluster\n'.format(node)
+            else:
+              current_nodes += value.split()
+
+    if not node_add_required:
+      return ret
+
+    if __opts__['test']:
+      ret['result'] = None
+      ret['comment'] += 'Node {0} is set to be added to the cluster\n'.format(node)
+      return ret
+
+    node_add = __salt__['pcs.cluster_node_add'](node=node, extra_args=extra_args)
+    log.trace('Output of pcs.cluster_node_add: ' + str(node_add))
+
+    node_add_dict = {}
+    for line in node_add['stdout'].splitlines():
+      log.trace('line: ' + line)
+      log.trace('line.split(:).len: ' + str(len(line.split(':'))))
+      if len(line.split(':')) in [ 2 ]:
+        current_node = line.split(':')[0].strip()
+        current_node_add_state = line.split(':')[1].strip()
+        if current_node in current_nodes + [ node ]:
+          node_add_dict.update( { current_node : current_node_add_state} )
+    log.trace('node_add_dict: ' + str(node_add_dict))
+
+    for current_node in current_nodes:
+      if current_node in node_add_dict:
+        if node_add_dict[current_node] not in [ 'Corosync updated' ]:
+          ret['result'] = False
+          ret['comment'] += 'Failed to update corosync.conf on node {0}\n'.format(current_node)
+          ret['comment'] += '{0}: node_add_dict: {1}\n'.format(current_node,node_add_dict[current_node],)
+      else:
+        ret['result'] = False
+        ret['comment'] += 'Failed to update corosync.conf on node {0}\n'.format(current_node)
+
+    if node in node_add_dict and node_add_dict[node] in [ 'Succeeded', 'Success' ]:
+      ret['comment'] += 'Added node {0}\n'.format(node)
+      ret['changes'].update({node: {'old': '', 'new': 'Added'}})
+    else:
+      ret['result'] = False
+      ret['comment'] += 'Failed to add node{0}\n'.format(node)
+      if node in node_add_dict:
+        ret['comment'] += '{0}: node_add_dict: {1}\n'.format(node,node_add_dict[node],)
+      ret['comment'] += str(node_add)
+
+    log.trace('ret: ' + str(ret))
 
     return ret
