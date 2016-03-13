@@ -118,3 +118,28 @@ def cluster_node_add(node, extra_args = []):
     cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+def stonith_create(stonith_id, stonith_device_type, stonith_device_options = []):
+    '''
+    Create a stonith resource via pcs
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.stonith_create stonith_id='my_fence_eps' \\
+                                    stonith_device_type='fence_eps' \\
+                                    stonith_device_options="[ \\
+                                      'pcmk_host_map=\\"node1.example.org:01;node2.example.org:02\\"', \\
+                                      'ipaddr=\\"myepsdevice.example.org\\"', \\
+                                      'action=\\"reboot\\"', \\
+                                      'power_wait=\\"5\\"', \\
+                                      'verbose=\\"1\\"', \\
+                                      'debug=\\"/var/log/pcsd/my_fence_eps.log\\"', \\
+                                      'login=\\"hidden\\"', \\
+                                      'passwd=\\"hoonetorg\\"' \\
+                                    ]"
+    '''
+    cmd = [ 'pcs',  'stonith',  'create',  stonith_id, stonith_device_type ] + stonith_device_options
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)

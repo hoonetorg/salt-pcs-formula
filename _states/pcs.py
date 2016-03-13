@@ -260,3 +260,57 @@ def cluster_node_add(name, node, extra_args=[]):
     log.trace('ret: ' + str(ret))
 
     return ret
+
+def stonith_created(name, stonith_id, stonith_device_type, stonith_device_options = []):
+    '''
+    Ensure that a fencing resource is created
+
+    Should be run on one cluster node only 
+    (there may be races)
+    Can only be run on a node with a functional pacemaker/corosync
+
+    name
+        Irrelevant, not used (recommended: pcs_setup__stonith_created_{{stonith_id}})
+    stonith_id
+        name for the stonith resource
+    stonith_device_type
+        name of the stonith agent fence_eps, fence_xvm f.e.
+    stonith_device_options
+        additional options for creating the stonith resource
+    '''
+
+    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+    result = {}
+    stonith_create_required = False
+    current_nodes = [] 
+
+    is_existing_cmd = [ 'pcs', 'stonith', 'show', stonith_id, ]
+    is_existing  = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
+    log.trace('Output of pcs stonith show {0}: {1}'.format(stonith_id, str(is_existing)))
+
+    if is_existing['retcode'] in [ 0 ]:
+      ret['comment'] += 'Stonith resource {0} is already existing\n'.format(stonith_id)
+    else:
+      stonith_create_required = True
+
+    if not stonith_create_required:
+      return ret
+
+    if __opts__['test']:
+      ret['result'] = None
+      ret['comment'] += 'Stonith resource {0} is set to be created\n'.format(stonith_id)
+      return ret
+
+    stonith_create = __salt__['pcs.stonith_create'](stonith_id=stonith_id, stonith_device_type=stonith_device_type, stonith_device_options=stonith_device_options)
+    log.trace('Output of pcs.stonith_create: ' + str(stonith_create))
+
+    if stonith_create['retcode'] in [ 0 ]:
+      ret['comment'] += 'Created stonith resource {0}\n'.format(stonith_id)
+      ret['changes'].update({stonith_id: {'old': '', 'new': stonith_id}})
+    else:
+      ret['result'] = False
+      ret['comment'] += 'Failed to create stonith resource {0}\n'.format(stonith_id)
+
+    log.trace('ret: ' + str(ret))
+
+    return ret
