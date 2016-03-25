@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 '''
-Pcs Command Wrapper
-========================
+Configure a Pacemaker/Corosync cluster with PCS
+===============================================
 
-The pcs command is wrapped for specific functions
+Configure Pacemaker/Cororsync clusters with the
+Pacemaker/Cororsync conifguration system (PCS)
 
 :depends: pcs
+
+.. versionadded:: 2016.3.0
 '''
 from __future__ import absolute_import
-
-# Import python libs
 
 # Import salt libs
 import salt.utils
@@ -17,16 +18,25 @@ import salt.utils
 
 def __virtual__():
     '''
-    Only load if pcs is installed
+    Only load if pcs package is installed
     '''
     if salt.utils.which('pcs'):
         return 'pcs'
     return False
 
 
-def auth(nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=[]):
+def auth(nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=None):
     '''
-    Authorize nodes
+    Authorize nodes to the cluster
+
+    nodes
+        a list of nodes which should be authorized to the cluster
+    pcsuser
+        user for communitcation with PCS (default: hacluster)
+    pcspasswd
+        password for pcsuser (default: hacluster)
+    extra_args
+        list of extra option for the \'pcs cluster auth\' command
 
     CLI Example:
 
@@ -45,7 +55,8 @@ def auth(nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=[]):
     if pcspasswd:
         cmd += ['-p', pcspasswd]
 
-    cmd += extra_args
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
     cmd += nodes
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
@@ -54,6 +65,9 @@ def auth(nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=[]):
 def is_auth(nodes):
     '''
     Check if nodes are already authorized
+
+    nodes
+        a list of nodes to be checked for authorization to the cluster
 
     CLI Example:
 
@@ -67,9 +81,16 @@ def is_auth(nodes):
     return __salt__['cmd.run_all'](cmd, stdin='\n\n', output_loglevel='trace', python_shell=False)
 
 
-def cluster_setup(nodes, pcsclustername='pcscluster', extra_args=[]):
+def cluster_setup(nodes, pcsclustername='pcscluster', extra_args=None):
     '''
-    Setup pacemaker cluster via pcs
+    Setup pacemaker cluster via pcs command
+
+    nodes
+        a list of nodes which should be set up
+    pcsclustername
+        Name of the Pacemaker cluster
+    extra_args
+        list of extra option for the \'pcs cluster setup\' command
 
     CLI Example:
 
@@ -84,7 +105,8 @@ def cluster_setup(nodes, pcsclustername='pcscluster', extra_args=[]):
     cmd += ['--name', pcsclustername]
 
     cmd += nodes
-    cmd += extra_args
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
@@ -104,9 +126,14 @@ def config_show():
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
 
-def cluster_node_add(node, extra_args=[]):
+def cluster_node_add(node, extra_args=None):
     '''
-    Add a node to the pacemaker cluster via pcs
+    Add a node to the pacemaker cluster via pcs command
+
+    node
+        node that should be added
+    extra_args
+        list of extra option for the \'pcs cluster node add\' command
 
     CLI Example:
 
@@ -118,14 +145,22 @@ def cluster_node_add(node, extra_args=[]):
     cmd = ['pcs', 'cluster', 'node', 'add']
 
     cmd += [node]
-    cmd += extra_args
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
 
-def stonith_create(stonith_id, stonith_device_type, stonith_device_options=[]):
+def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None):
     '''
-    Create a stonith resource via pcs
+    Create a stonith resource via pcs command
+
+    stonith_id
+        name for the stonith resource
+    stonith_device_type
+        name of the stonith agent fence_eps, fence_xvm f.e.
+    stonith_device_options
+        additional options for creating the stonith resource
 
     CLI Example:
 
@@ -144,6 +179,8 @@ def stonith_create(stonith_id, stonith_device_type, stonith_device_options=[]):
                                       'passwd=\\"hoonetorg\\"' \\
                                     ]"
     '''
-    cmd = ['pcs', 'stonith', 'create', stonith_id, stonith_device_type] + stonith_device_options
+    cmd = ['pcs', 'stonith', 'create', stonith_id, stonith_device_type]
+    if isinstance(stonith_device_options, (list, tuple)):
+        cmd += stonith_device_options
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
