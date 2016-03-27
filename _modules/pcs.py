@@ -184,3 +184,57 @@ def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None)
         cmd += stonith_device_options
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+def cib_create(cibfile, scope='configuration', extra_args=None):
+    '''
+    Create a CIB-file from the current CIB of the cluster
+
+    cibfile
+        name/path of the file containing the CIB
+    scope
+        specific section of the CIB (default: configuration)
+    extra_args
+        additional options for creating the CIB-file
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.cib_create cibfile='/tmp/VIP_apache_1.cib' \\
+                                scope=False \\
+                                extra_args=None
+    '''
+    cmd = ['pcs', 'cluster', 'cib', cibfile]
+    if scope:
+        cmd += [ 'scope={0}'.format(scope) ]
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+def cib_push(cibfile, scope='configuration', extra_args=None):
+    '''
+    Push a CIB-file as the new CIB to the cluster
+
+    cibfile
+        name/path of the file containing the CIB
+    scope
+        specific section of the CIB (default: configuration)
+    extra_args
+        additional options for creating the CIB-file
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.cib_push cibfile='/tmp/VIP_apache_1.cib' \\
+                                scope=False \\
+                                extra_args=None
+    '''
+    cmd = ['pcs', 'cluster', 'cib-push', cibfile]
+    if scope:
+        cmd += [ 'scope={0}'.format(scope) ]
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)

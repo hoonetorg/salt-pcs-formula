@@ -14,6 +14,7 @@ from __future__ import absolute_import
 
 # Import python libs
 import logging
+import os
 
 # Import salt libs
 import salt.utils
@@ -369,6 +370,89 @@ def stonith_created(name, stonith_id, stonith_device_type, stonith_device_option
     else:
         ret['result'] = False
         ret['comment'] += 'Failed to create stonith resource {0}\n'.format(stonith_id)
+
+    log.trace('ret: ' + str(ret))
+
+    return ret
+
+def cib_created(name, cibname, scope='configuration', extra_args=None):
+    '''
+    Ensure that a CIB-file with the content of the current live CIB is created
+
+    Should be run on one cluster node only
+    (there may be races)
+
+    name
+        Irrelevant, not used (recommended: {{formulaname}}__cib_created_{{cibname}})
+    cibname
+        name/path of the file containing the CIB
+    scope
+        specific section of the CIB (default: configuration)
+    extra_args
+        additional options for creating the CIB-file
+
+    Example:
+
+    .. code-block:: yaml
+        mysql__cib_created_cib_for_galera:
+            pcs.cib_created:
+                - cibname: cib_for_galera
+                - scope: False
+                - extra_args: None
+    '''
+    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+    cib_create_required = False
+    cib_hash_form = 'sha256'
+
+    cibpath = os.path.join(__opts__['cachedir'], 'pcs', __env__)
+    cibfile = os.path.join(cibpath,'{0}.{1}'.format(cibname,'cib'))
+    cibfile_tmp = os.path.join(cibpath,'{0}.{1}.tmp'.format(cibname,'cib'))
+
+    log.trace('cibpath: {0}'.format(cibpath))
+    log.trace('cibfile: {0}'.format(cibfile))
+    log.trace('cibfile_tmp: {0}'.format(cibfile_tmp))
+
+    if not os.path.exists(cibpath):
+        os.makedirs(cibpath)
+
+    if not isinstance(extra_args, (list, tuple)):
+        extra_args = []
+
+    if os.path.exists(cibfile_tmp):
+        __salt__['file.remove'](cibfile_tmp)
+
+    cib_create = __salt__['pcs.cib_create'](cibfile=cibfile_tmp, scope=scope, extra_args=extra_args)
+    log.trace('Output of pcs.cib_create: {0}'.format(str(cib_create)))
+
+    if cib_create['retcode'] not in [0] or not os.path.exists(cibfile_tmp):
+        ret['result'] = False
+        ret['comment'] += 'Failed to get live CIB\n'
+        return ret
+
+    cib_live_hash = __salt__['file.get_hash'](path=cibfile_tmp, form=cib_hash_form)
+    log.trace('cib_live_hash: {0}:{1}'.format(cib_hash_form, str(cib_live_hash)))
+
+    if not os.path.exists(cibfile) or not __salt__['file.check_hash'](path=cibfile, file_hash='{0}:{1}'.format(cib_hash_form, cib_live_hash)):
+        cib_create_required = True
+
+    if not cib_create_required:
+        __salt__['file.remove'](cibfile_tmp)
+        ret['comment'] += 'CIB {0} is already equal to the live CIB\n'.format(cibname)
+        return ret
+
+    if __opts__['test']:
+        __salt__['file.remove'](cibfile_tmp)
+        ret['result'] = None
+        ret['comment'] += 'CIB {0} is set to be created/updated\n'.format(cibname)
+        return ret
+
+    __salt__['file.move'](cibfile_tmp, cibfile)
+    ret['comment'] += 'Created/updated CIB {0}\n'.format(cibname)
+    ret['changes'].update({'cibfile': cibfile})
+
+    if not __salt__['file.check_hash'](path=cibfile, file_hash='{0}:{1}'.format(cib_hash_form, cib_live_hash)):
+        ret['result'] = False
+        ret['comment'] += 'Failed to create CIB {0}\n'.format(cibname)
 
     log.trace('ret: ' + str(ret))
 
