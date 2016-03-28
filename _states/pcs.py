@@ -591,8 +591,6 @@ def cib_pushed(name, cibname, scope=None, extra_args=None):
     cib_hash_form = 'sha256'
 
     cib_push_required = False
-    cib_cksum_required = False
-    cib_required = False
 
     cibfile = _get_cibfile(cibname)
     cibfile_cksum = _get_cibfile_cksum(cibname)
