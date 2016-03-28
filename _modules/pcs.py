@@ -185,6 +185,7 @@ def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None)
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
+
 def cib_create(cibfile, scope='configuration', extra_args=None):
     '''
     Create a CIB-file from the current CIB of the cluster
@@ -206,11 +207,12 @@ def cib_create(cibfile, scope='configuration', extra_args=None):
     '''
     cmd = ['pcs', 'cluster', 'cib', cibfile]
     if scope:
-        cmd += [ 'scope={0}'.format(scope) ]
+        cmd += ['scope={0}'.format(scope)]
     if isinstance(extra_args, (list, tuple)):
         cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
 
 def cib_push(cibfile, scope='configuration', extra_args=None):
     '''
@@ -233,7 +235,7 @@ def cib_push(cibfile, scope='configuration', extra_args=None):
     '''
     cmd = ['pcs', 'cluster', 'cib-push', cibfile]
     if scope:
-        cmd += [ 'scope={0}'.format(scope) ]
+        cmd += ['scope={0}'.format(scope)]
     if isinstance(extra_args, (list, tuple)):
         cmd += extra_args
 
