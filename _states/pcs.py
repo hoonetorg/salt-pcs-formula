@@ -631,3 +631,76 @@ def cib_pushed(name, cibname, scope=None, extra_args=None):
     log.trace('ret: ' + str(ret))
 
     return ret
+
+
+def prop_is_set(name, prop, value, extra_args=None, cibname=None):
+    '''
+    Ensure that a property in the cluster is set to a given value
+
+    Should be run on one cluster node only
+    (there may be races)
+
+    name
+        Irrelevant, not used (recommended: pcs_property__prop_is_set_{{prop}})
+    prop
+        name of the property
+    value
+        value of the property prop
+    extra_args
+        additional options for the pcs property command
+    cibname
+        use a cached CIB-file named like cibname instead of the live CIB for manipulation
+
+    Example:
+
+    .. code-block:: yaml
+        pcs_property__prop_is_set_no-quorum-policy:
+            pcs.prop_is_set:
+                - prop: no-quorum-policy
+                - value: ignore
+                - cibname: cib_for_cluster_properties
+    '''
+    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+
+    prop_set_required = True
+
+    cibfile = None
+    if isinstance(cibname, six.string_types):
+        cibfile = _get_cibfile(cibname)
+
+    if not isinstance(extra_args, (list, tuple)):
+        extra_args = []
+
+    is_prop_set = __salt__['pcs.prop_show'](prop=prop, cibfile=cibfile)
+    log.trace('is_prop_set: {0}'.format(str(is_prop_set)))
+
+    for line in is_prop_set['stdout'].splitlines():
+        if len(line.split(':')) in [2]:
+            line_prop = line.split(':')[0].strip()
+            line_value = line.split(':')[1].strip()
+        if prop in [ line_prop ]:
+            if value in [ line_value ]:
+                prop_set_required = False
+
+    if not prop_set_required:
+        ret['comment'] += 'Property {0} is already set to {1}\n'.format(prop, value)
+        return ret
+
+    if __opts__['test']:
+        ret['result'] = None
+        ret['comment'] += 'Property {0} is set to be set to {1}\n'.format(prop, value)
+        return ret
+
+    prop_set = __salt__['pcs.prop_set'](prop=prop, value=value, cibfile=cibfile, extra_args=extra_args)
+    log.trace('Output of pcs.prop_set: {0}'.format(str(prop_set)))
+
+    if prop_set['retcode'] in [0]:
+        ret['comment'] += 'Property {0} is set to {1}\n'.format(prop, value)
+        ret['changes'].update({prop: value})
+    else:
+        ret['result'] = False
+        ret['comment'] += 'Failed to set property {0} to {1}\n'.format(prop, value)
+
+    log.trace('ret: ' + str(ret))
+
+    return ret

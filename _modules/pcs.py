@@ -247,3 +247,64 @@ def cib_push(cibfile, scope='configuration', extra_args=None):
         cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+
+def prop_show(prop, extra_args=None, cibfile=None):
+    '''
+    Show the value of a cluster property
+
+    prop
+        name of the property
+    extra_args
+        additional options for the pcs property command
+    cibfile
+        use cibfile instead of the live CIB
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.prop_show cibfile='/tmp/2_node_cluster.cib' \\
+                               prop='no-quorum-policy' \\
+                               extra_args=None
+    '''
+    cmd = ['pcs']
+    if isinstance(cibfile, six.string_types):
+        cmd += ['-f', cibfile]
+    cmd += ['property', 'show', prop]
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+
+def prop_set(prop, value, extra_args=None, cibfile=None):
+    '''
+    Set the value of a cluster property
+
+    prop
+        name of the property
+    value
+        value of the property prop
+    extra_args
+        additional options for the pcs property command
+    cibfile
+        use cibfile instead of the live CIB
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.prop_set cibfile='/tmp/2_node_cluster.cib' \\
+                              prop='no-quorum-policy' \\
+                              value='ignore' \\
+                              extra_args=None
+    '''
+    cmd = ['pcs']
+    if isinstance(cibfile, six.string_types):
+        cmd += ['-f', cibfile]
+    cmd += ['property', 'set', '{0}={1}'.format(prop,value)]
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
