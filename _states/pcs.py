@@ -678,8 +678,8 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
         if len(line.split(':')) in [2]:
             line_prop = line.split(':')[0].strip()
             line_value = line.split(':')[1].strip()
-        if prop in [ line_prop ]:
-            if value in [ line_value ]:
+        if prop in [line_prop]:
+            if value in [line_value]:
                 prop_set_required = False
 
     if not prop_set_required:

@@ -303,7 +303,7 @@ def prop_set(prop, value, extra_args=None, cibfile=None):
     cmd = ['pcs']
     if isinstance(cibfile, six.string_types):
         cmd += ['-f', cibfile]
-    cmd += ['property', 'set', '{0}={1}'.format(prop,value)]
+    cmd += ['property', 'set', '{0}={1}'.format(prop, value)]
     if isinstance(extra_args, (list, tuple)):
         cmd += extra_args
 
