@@ -308,3 +308,66 @@ def prop_set(prop, value, extra_args=None, cibfile=None):
         cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+
+def resource_show(resource_id, extra_args=None, cibfile=None):
+    '''
+    Show a resource via pcs command
+
+    resource_id
+        name of the resource
+    extra_args
+        additional options for the pcs command 
+    cibfile
+        use cibfile instead of the live CIB
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.resource_show resource_id='p_galera' \\
+                                   cibfile='/tmp/cib_for_resource.cib'
+    '''
+    cmd = ['pcs']
+    if isinstance(cibfile, six.string_types):
+        cmd += ['-f', cibfile]
+    cmd += ['resource', 'show', resource_id]
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+
+def resource_create(resource_id, resource_type, resource_options=None, cibfile=None):
+    '''
+    Create a resource via pcs command
+
+    resource_id
+        name for the resource
+    resource_type
+        resource type (f.e. ocf:heartbeat:IPaddr2 or VirtualIP)
+    resource_options
+        additional options for creating the resource
+    cibfile
+        use cibfile instead of the live CIB for manipulation
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.resource_create resource_id='p_galera' \\
+                                     resource_type='ocf:heartbeat:galera' \\
+                                     resource_options="[ \\
+                                       'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org' \\
+                                       '--master' \\
+                                     ]" \\
+                                     cibfile='/tmp/cib_for_resource.cib'
+    '''
+    cmd = ['pcs']
+    if isinstance(cibfile, six.string_types):
+        cmd += ['-f', cibfile]
+    cmd += ['resource', 'create', resource_id, resource_type]
+    if isinstance(resource_options, (list, tuple)):
+        cmd += resource_options
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)

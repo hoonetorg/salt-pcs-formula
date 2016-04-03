@@ -377,7 +377,6 @@ def stonith_created(name, stonith_id, stonith_device_type, stonith_device_option
     cibname
         use a cached CIB-file named like cibname instead of the live CIB for manipulation
 
-
     Example:
 
     .. code-block:: yaml
@@ -700,6 +699,88 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
     else:
         ret['result'] = False
         ret['comment'] += 'Failed to set property {0} to {1}\n'.format(prop, value)
+
+    log.trace('ret: ' + str(ret))
+
+    return ret
+
+
+def resource_created(name, resource_id, resource_type, resource_options=None, cibname=None):
+    '''
+    Ensure that a resource is created
+
+    Should be run on one cluster node only
+    (there may be races)
+    Can only be run on a node with a functional pacemaker/corosync
+
+    name
+        Irrelevant, not used (recommended: {{formulaname}}__resource_created_{{resource_id}})
+    resource_id
+        name for the resource
+    resource_type
+        resource type (f.e. ocf:heartbeat:IPaddr2 or VirtualIP)
+    resource_options
+        additional options for creating the resource
+    cibname
+        use a cached CIB-file named like cibname instead of the live CIB for manipulation
+
+    Example:
+
+    .. code-block:: yaml
+        mysql__resource_created_p_galera:
+            pcs.resource_created:
+                - resource_id: p_galera
+                - resource_type: "ocf:heartbeat:galera"
+                - resource_options:
+                    - 'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org'
+                    - '--master'
+                - cibname: cib_for_galera
+    '''
+    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+    resource_create_required = False
+
+    cibfile = None
+    if isinstance(cibname, six.string_types):
+        cibfile = _get_cibfile(cibname)
+
+    is_existing_cmd = ['pcs']
+    if isinstance(cibfile, six.string_types):
+        is_existing_cmd += ['-f', cibfile]
+    is_existing_cmd += ['resource', 'show', resource_id]
+
+    is_existing = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
+    log.trace('Output of pcs resource show {0}: {1}'.format(resource_id, str(is_existing)))
+
+    if is_existing['retcode'] in [0]:
+        ret['comment'] += 'Resource {0} is already existing\n'.format(resource_id)
+    else:
+        resource_create_required = True
+
+    if not resource_create_required:
+        return ret
+
+    if __opts__['test']:
+        ret['result'] = None
+        ret['comment'] += 'Resource {0} is set to be created\n'.format(resource_id)
+        return ret
+
+    if not isinstance(resource_options, (list, tuple)):
+        resource_options = []
+
+    resource_create = __salt__['pcs.resource_create'](
+        resource_id=resource_id,
+        resource_type=resource_type,
+        resource_options=resource_options,
+        cibfile=cibfile)
+
+    log.trace('Output of pcs.resource_create: ' + str(resource_create))
+
+    if resource_create['retcode'] in [0]:
+        ret['comment'] += 'Created resource {0}\n'.format(resource_id)
+        ret['changes'].update({resource_id: {'old': '', 'new': resource_id}})
+    else:
+        ret['result'] = False
+        ret['comment'] += 'Failed to create resource {0}\n'.format(resource_id)
 
     log.trace('ret: ' + str(ret))
 
