@@ -26,6 +26,60 @@ def __virtual__():
     return False
 
 
+def _item_show(item, item_id=None, extra_args=None, cibfile=None):
+    '''
+    Show an item via pcs command
+
+    item
+        config, property, resource, constraint etc.
+    item_id
+        id of the item
+    extra_args
+        additional options for the pcs command 
+    cibfile
+        use cibfile instead of the live CIB
+    '''
+    cmd = ['pcs']
+    if isinstance(cibfile, six.string_types):
+        cmd += ['-f', cibfile]
+    cmd += [item, 'show']
+    if isinstance(item_id, six.string_types):
+        cmd += [item_id]
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+
+def _item_create(item, item_id, item_type, create='create', extra_args=None, cibfile=None):
+    '''
+    Create an item via pcs command
+
+    item
+        config, property, resource, constraint etc.
+    item_id
+        id of the item
+    item_type
+        item type 
+    create
+        create command (create or set f.e., default: create)
+    extra_args
+        additional options for the pcs command 
+    cibfile
+        use cibfile instead of the live CIB
+    '''
+    cmd = ['pcs']
+    if isinstance(cibfile, six.string_types):
+        cmd += ['-f', cibfile]
+    cmd += [item, create, item_id]
+    if isinstance(item_type, six.string_types):
+        cmd += [item_type]
+    if isinstance(extra_args, (list, tuple)):
+        cmd += extra_args
+
+    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+
 def auth(nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=None):
     '''
     Authorize nodes to the cluster
@@ -45,7 +99,7 @@ def auth(nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=None):
 
         salt '*' pcs.auth nodes='[ node1.example.org node2.example.org ]' \\
                           pcsuser='hacluster' \\
-                          pcspasswd='hacluster' \\
+                          pcspasswd='hoonetorg' \\
                           extra_args=[ '--force' ]
     '''
     cmd = ['pcs', 'cluster', 'auth']
@@ -98,8 +152,7 @@ def cluster_setup(nodes, pcsclustername='pcscluster', extra_args=None):
     .. code-block:: bash
 
         salt '*' pcs.cluster_setup nodes='[ node1.example.org node2.example.org ]' \\
-                                   pcsclustername='pcscluster', \\
-                                   extra_args=[ '' ]
+                                   pcsclustername='pcscluster'
     '''
     cmd = ['pcs', 'cluster', 'setup']
 
@@ -108,21 +161,6 @@ def cluster_setup(nodes, pcsclustername='pcscluster', extra_args=None):
     cmd += nodes
     if isinstance(extra_args, (list, tuple)):
         cmd += extra_args
-
-    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
-
-
-def config_show():
-    '''
-    Show config of cluster
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' pcs.config_show
-    '''
-    cmd = ['pcs', 'config', 'show']
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
@@ -140,55 +178,13 @@ def cluster_node_add(node, extra_args=None):
 
     .. code-block:: bash
 
-        salt '*' pcs.cluster_node_add node=node2.example.org' \\
-                                      extra_args=[ '' ]
+        salt '*' pcs.cluster_node_add node=node2.example.org'
     '''
     cmd = ['pcs', 'cluster', 'node', 'add']
 
     cmd += [node]
     if isinstance(extra_args, (list, tuple)):
         cmd += extra_args
-
-    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
-
-
-def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None, cibfile=None):
-    '''
-    Create a stonith resource via pcs command
-
-    stonith_id
-        name for the stonith resource
-    stonith_device_type
-        name of the stonith agent fence_eps, fence_xvm f.e.
-    stonith_device_options
-        additional options for creating the stonith resource
-    cibfile
-        use cibfile instead of the live CIB for manipulation
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' pcs.stonith_create stonith_id='my_fence_eps' \\
-                                    stonith_device_type='fence_eps' \\
-                                    stonith_device_options="[ \\
-                                      'pcmk_host_map=\\"node1.example.org:01;node2.example.org:02\\"', \\
-                                      'ipaddr=\\"myepsdevice.example.org\\"', \\
-                                      'action=\\"reboot\\"', \\
-                                      'power_wait=\\"5\\"', \\
-                                      'verbose=\\"1\\"', \\
-                                      'debug=\\"/var/log/pcsd/my_fence_eps.log\\"', \\
-                                      'login=\\"hidden\\"', \\
-                                      'passwd=\\"hoonetorg\\"' \\
-                                    ]" \\
-                                    cibfile="/tmp/cib_for_stonith.cib"
-    '''
-    cmd = ['pcs']
-    if isinstance(cibfile, six.string_types):
-        cmd += ['-f', cibfile]
-    cmd += ['stonith', 'create', stonith_id, stonith_device_type]
-    if isinstance(stonith_device_options, (list, tuple)):
-        cmd += stonith_device_options
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
@@ -209,8 +205,7 @@ def cib_create(cibfile, scope='configuration', extra_args=None):
     .. code-block:: bash
 
         salt '*' pcs.cib_create cibfile='/tmp/VIP_apache_1.cib' \\
-                                scope=None \\
-                                extra_args=None
+                                'scope=False' 
     '''
     cmd = ['pcs', 'cluster', 'cib', cibfile]
     if isinstance(scope, six.string_types):
@@ -237,8 +232,7 @@ def cib_push(cibfile, scope='configuration', extra_args=None):
     .. code-block:: bash
 
         salt '*' pcs.cib_push cibfile='/tmp/VIP_apache_1.cib' \\
-                                scope=None \\
-                                extra_args=None
+                              'scope=False' 
     '''
     cmd = ['pcs', 'cluster', 'cib-push', cibfile]
     if isinstance(scope, six.string_types):
@@ -247,6 +241,73 @@ def cib_push(cibfile, scope='configuration', extra_args=None):
         cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+
+
+def config_show(cibfile=None):
+    '''
+    Show config of cluster
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.config_show cibfile='/tmp/cib_for_galera'
+    '''
+    return _item_show(item='config', item_id=None, extra_args=None, cibfile=cibfile)
+
+
+def stonith_show(stonith_id, extra_args=None, cibfile=None):
+    '''
+    Show the value of a cluster stonith
+
+    stonith_id
+        name for the stonith resource
+    extra_args
+        additional options for the pcs stonith command
+    cibfile
+        use cibfile instead of the live CIB
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.stonith_show stonith_id='my_fence_eps' \\
+                                  cibfile='/tmp/2_node_cluster.cib'
+    '''
+    return _item_show(item='stonith', item_id=stonith_id, extra_args=extra_args, cibfile=cibfile)
+
+def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None, cibfile=None):
+    '''
+    Create a stonith resource via pcs command
+
+    stonith_id
+        name for the stonith resource
+    stonith_device_type
+        name of the stonith agent fence_eps, fence_xvm f.e.
+    stonith_device_options
+        additional options for creating the stonith resource
+    cibfile
+        use cibfile instead of the live CIB for manipulation
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.stonith_create stonith_id='my_fence_eps' \\
+                                    stonith_device_type='fence_eps' \\
+                                    stonith_device_options="[ \\
+                                      'pcmk_host_map=node1.example.org:01;node2.example.org:02', \\
+                                      'ipaddr=myepsdevice.example.org', \\
+                                      'action=reboot', \\
+                                      'power_wait=5', \\
+                                      'verbose=1', \\
+                                      'debug=/var/log/pcsd/my_fence_eps.log', \\
+                                      'login=hidden', \\
+                                      'passwd=hoonetorg' \\
+                                    ]" \\
+                                    cibfile='/tmp/cib_for_stonith.cib'
+    '''
+    return _item_create(item='stonith', item_id=stonith_id, item_type=stonith_device_type, extra_args=stonith_device_options, cibfile=cibfile)
 
 
 def prop_show(prop, extra_args=None, cibfile=None):
@@ -266,16 +327,9 @@ def prop_show(prop, extra_args=None, cibfile=None):
 
         salt '*' pcs.prop_show cibfile='/tmp/2_node_cluster.cib' \\
                                prop='no-quorum-policy' \\
-                               extra_args=None
+                               cibfile='/tmp/2_node_cluster.cib'
     '''
-    cmd = ['pcs']
-    if isinstance(cibfile, six.string_types):
-        cmd += ['-f', cibfile]
-    cmd += ['property', 'show', prop]
-    if isinstance(extra_args, (list, tuple)):
-        cmd += extra_args
-
-    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+    return _item_show(item='property', item_id=prop, extra_args=extra_args, cibfile=cibfile)
 
 
 def prop_set(prop, value, extra_args=None, cibfile=None):
@@ -295,19 +349,11 @@ def prop_set(prop, value, extra_args=None, cibfile=None):
 
     .. code-block:: bash
 
-        salt '*' pcs.prop_set cibfile='/tmp/2_node_cluster.cib' \\
-                              prop='no-quorum-policy' \\
+        salt '*' pcs.prop_set prop='no-quorum-policy' \\
                               value='ignore' \\
-                              extra_args=None
+                              cibfile='/tmp/2_node_cluster.cib'
     '''
-    cmd = ['pcs']
-    if isinstance(cibfile, six.string_types):
-        cmd += ['-f', cibfile]
-    cmd += ['property', 'set', '{0}={1}'.format(prop, value)]
-    if isinstance(extra_args, (list, tuple)):
-        cmd += extra_args
-
-    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+    return _item_create(item='property', item_id='{0}={1}'.format(prop, value), item_type=None, create='set', extra_args=extra_args, cibfile=cibfile)
 
 
 def resource_show(resource_id, extra_args=None, cibfile=None):
@@ -326,16 +372,9 @@ def resource_show(resource_id, extra_args=None, cibfile=None):
     .. code-block:: bash
 
         salt '*' pcs.resource_show resource_id='p_galera' \\
-                                   cibfile='/tmp/cib_for_resource.cib'
+                                   cibfile='/tmp/cib_for_galera.cib'
     '''
-    cmd = ['pcs']
-    if isinstance(cibfile, six.string_types):
-        cmd += ['-f', cibfile]
-    cmd += ['resource', 'show', resource_id]
-    if isinstance(extra_args, (list, tuple)):
-        cmd += extra_args
-
-    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+    return _item_show(item='resource', item_id=resource_id, extra_args=extra_args, cibfile=cibfile)
 
 
 def resource_create(resource_id, resource_type, resource_options=None, cibfile=None):
@@ -361,13 +400,6 @@ def resource_create(resource_id, resource_type, resource_options=None, cibfile=N
                                        'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org' \\
                                        '--master' \\
                                      ]" \\
-                                     cibfile='/tmp/cib_for_resource.cib'
+                                     cibfile='/tmp/cib_for_galera.cib'
     '''
-    cmd = ['pcs']
-    if isinstance(cibfile, six.string_types):
-        cmd += ['-f', cibfile]
-    cmd += ['resource', 'create', resource_id, resource_type]
-    if isinstance(resource_options, (list, tuple)):
-        cmd += resource_options
-
-    return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
+    return _item_create(item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibfile=cibfile)
