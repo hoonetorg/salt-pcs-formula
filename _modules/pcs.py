@@ -26,7 +26,7 @@ def __virtual__():
     return False
 
 
-def _item_show(item, item_id=None, extra_args=None, cibfile=None):
+def item_show(item, item_id=None, extra_args=None, cibfile=None):
     '''
     Show an item via pcs command
 
@@ -51,7 +51,7 @@ def _item_show(item, item_id=None, extra_args=None, cibfile=None):
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
 
-def _item_create(item, item_id, item_type, create='create', extra_args=None, cibfile=None):
+def item_create(item, item_id, item_type, create='create', extra_args=None, cibfile=None):
     '''
     Create an item via pcs command
 
@@ -253,7 +253,53 @@ def config_show(cibfile=None):
 
         salt '*' pcs.config_show cibfile='/tmp/cib_for_galera'
     '''
-    return _item_show(item='config', item_id=None, extra_args=None, cibfile=cibfile)
+    return item_show(item='config', item_id=None, extra_args=None, cibfile=cibfile)
+
+
+def prop_show(prop, extra_args=None, cibfile=None):
+    '''
+    Show the value of a cluster property
+
+    prop
+        name of the property
+    extra_args
+        additional options for the pcs property command
+    cibfile
+        use cibfile instead of the live CIB
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.prop_show cibfile='/tmp/2_node_cluster.cib' \\
+                               prop='no-quorum-policy' \\
+                               cibfile='/tmp/2_node_cluster.cib'
+    '''
+    return item_show(item='property', item_id=prop, extra_args=extra_args, cibfile=cibfile)
+
+
+def prop_set(prop, value, extra_args=None, cibfile=None):
+    '''
+    Set the value of a cluster property
+
+    prop
+        name of the property
+    value
+        value of the property prop
+    extra_args
+        additional options for the pcs property command
+    cibfile
+        use cibfile instead of the live CIB
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt '*' pcs.prop_set prop='no-quorum-policy' \\
+                              value='ignore' \\
+                              cibfile='/tmp/2_node_cluster.cib'
+    '''
+    return item_create(item='property', item_id='{0}={1}'.format(prop, value), item_type=None, create='set', extra_args=extra_args, cibfile=cibfile)
 
 
 def stonith_show(stonith_id, extra_args=None, cibfile=None):
@@ -274,7 +320,7 @@ def stonith_show(stonith_id, extra_args=None, cibfile=None):
         salt '*' pcs.stonith_show stonith_id='my_fence_eps' \\
                                   cibfile='/tmp/2_node_cluster.cib'
     '''
-    return _item_show(item='stonith', item_id=stonith_id, extra_args=extra_args, cibfile=cibfile)
+    return item_show(item='stonith', item_id=stonith_id, extra_args=extra_args, cibfile=cibfile)
 
 def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None, cibfile=None):
     '''
@@ -307,53 +353,7 @@ def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None,
                                     ]" \\
                                     cibfile='/tmp/cib_for_stonith.cib'
     '''
-    return _item_create(item='stonith', item_id=stonith_id, item_type=stonith_device_type, extra_args=stonith_device_options, cibfile=cibfile)
-
-
-def prop_show(prop, extra_args=None, cibfile=None):
-    '''
-    Show the value of a cluster property
-
-    prop
-        name of the property
-    extra_args
-        additional options for the pcs property command
-    cibfile
-        use cibfile instead of the live CIB
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' pcs.prop_show cibfile='/tmp/2_node_cluster.cib' \\
-                               prop='no-quorum-policy' \\
-                               cibfile='/tmp/2_node_cluster.cib'
-    '''
-    return _item_show(item='property', item_id=prop, extra_args=extra_args, cibfile=cibfile)
-
-
-def prop_set(prop, value, extra_args=None, cibfile=None):
-    '''
-    Set the value of a cluster property
-
-    prop
-        name of the property
-    value
-        value of the property prop
-    extra_args
-        additional options for the pcs property command
-    cibfile
-        use cibfile instead of the live CIB
-
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' pcs.prop_set prop='no-quorum-policy' \\
-                              value='ignore' \\
-                              cibfile='/tmp/2_node_cluster.cib'
-    '''
-    return _item_create(item='property', item_id='{0}={1}'.format(prop, value), item_type=None, create='set', extra_args=extra_args, cibfile=cibfile)
+    return item_create(item='stonith', item_id=stonith_id, item_type=stonith_device_type, extra_args=stonith_device_options, cibfile=cibfile)
 
 
 def resource_show(resource_id, extra_args=None, cibfile=None):
@@ -374,7 +374,7 @@ def resource_show(resource_id, extra_args=None, cibfile=None):
         salt '*' pcs.resource_show resource_id='p_galera' \\
                                    cibfile='/tmp/cib_for_galera.cib'
     '''
-    return _item_show(item='resource', item_id=resource_id, extra_args=extra_args, cibfile=cibfile)
+    return item_show(item='resource', item_id=resource_id, extra_args=extra_args, cibfile=cibfile)
 
 
 def resource_create(resource_id, resource_type, resource_options=None, cibfile=None):
@@ -402,4 +402,4 @@ def resource_create(resource_id, resource_type, resource_options=None, cibfile=N
                                      ]" \\
                                      cibfile='/tmp/cib_for_galera.cib'
     '''
-    return _item_create(item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibfile=cibfile)
+    return item_create(item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibfile=cibfile)

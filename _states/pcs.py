@@ -89,6 +89,73 @@ def _get_cibfile_cksum(cibname):
     return cibfile_cksum
 
 
+def _item_created(name, item, item_id, item_type, create='create', extra_args=None, cibname=None):
+    '''
+    Ensure that an item is created
+
+    name
+        Irrelevant, not used
+    item
+        config, property, resource, constraint etc.
+    item_id
+        id of the item
+    item_type
+        item type
+    create
+        create command (create or set f.e., default: create)
+    extra_args
+        additional options for the pcs command 
+    cibname
+        use a cached CIB-file named like cibname instead of the live CIB
+    '''
+    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+    item_create_required = False
+
+    cibfile = None
+    if isinstance(cibname, six.string_types):
+        cibfile = _get_cibfile(cibname)
+
+    is_existing = __salt__['pcs.item_show'](item=item, item_id=item_id, cibfile=cibfile)
+    log.trace('Output of pcs.item_show item={0} item_id={1} cibfile={2}: {3}'.format(str(item), str(item_id), str(cibfile), str(is_existing)))
+
+    if is_existing['retcode'] in [0]:
+        ret['comment'] += '{0} {1} is already existing\n'.format(str(item), str(item_id))
+    else:
+        item_create_required = True
+
+    if not item_create_required:
+        return ret
+
+    if __opts__['test']:
+        ret['result'] = None
+        ret['comment'] += '{0} {1} is set to be created\n'.format(str(item), str(item_id))
+        return ret
+
+    if not isinstance(extra_args, (list, tuple)):
+        extra_args = []
+
+    item_create = __salt__['pcs.item_create'](
+        item=item,
+        item_id=item_id,
+        item_type=item_type,
+        create=create,
+        extra_args=extra_args,
+        cibfile=cibfile)
+
+    log.trace('Output of pcs.item_create: {0}'.format(str(item_create)))
+
+    if item_create['retcode'] in [0]:
+        ret['comment'] += 'Created {0} {1}\n'.format(str(item), str(item_id))
+        ret['changes'].update({item_id: {'old': '', 'new': item_id}})
+    else:
+        ret['result'] = False
+        ret['comment'] += 'Failed to create {0} {1}\n'.format(str(item), str(item_id))
+
+    log.trace('ret: ' + str(ret))
+
+    return ret
+
+
 def auth(name, nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=None):
     '''
     Ensure all nodes are authorized to the cluster
@@ -216,11 +283,11 @@ def cluster_setup(name, nodes, pcsclustername='pcscluster', extra_args=None):
             value = line.split(':')[1].strip()
             if key in ['Cluster Name']:
                 if value in [pcsclustername]:
-                    ret['comment'] += 'Node is already set up\n'
+                    ret['comment'] += 'Cluster {0} is already set up\n'.format(str(pcsclustername))
                 else:
                     setup_required = True
                     if __opts__['test']:
-                        ret['comment'] += 'Node is set to set up\n'
+                        ret['comment'] += 'Cluster {0} is set to set up\n'.format(str(pcsclustername))
 
     if not setup_required:
         return ret
@@ -352,93 +419,6 @@ def cluster_node_add(name, node, extra_args=None):
         if node in node_add_dict:
             ret['comment'] += '{0}: node_add_dict: {1}\n'.format(node, node_add_dict[node])
         ret['comment'] += str(node_add)
-
-    log.trace('ret: ' + str(ret))
-
-    return ret
-
-
-def stonith_created(name, stonith_id, stonith_device_type, stonith_device_options=None, cibname=None):
-    '''
-    Ensure that a fencing resource is created
-
-    Should be run on one cluster node only
-    (there may be races)
-    Can only be run on a node with a functional pacemaker/corosync
-
-    name
-        Irrelevant, not used (recommended: pcs_stonith__created_{{stonith_id}})
-    stonith_id
-        name for the stonith resource
-    stonith_device_type
-        name of the stonith agent fence_eps, fence_xvm f.e.
-    stonith_device_options
-        additional options for creating the stonith resource
-    cibname
-        use a cached CIB-file named like cibname instead of the live CIB for manipulation
-
-    Example:
-
-    .. code-block:: yaml
-        pcs_stonith__created_my_fence_eps:
-            pcs.stonith_created:
-                - stonith_id: my_fence_eps
-                - stonith_device_type: fence_eps
-                - stonith_device_options:
-                    - 'pcmk_host_map=node1.example.org:01;node2.example.org:02'
-                    - 'ipaddr=myepsdevice.example.org'
-                    - 'power_wait=5'
-                    - 'verbose=1'
-                    - 'debug=/var/log/pcsd/my_fence_eps.log'
-                    - 'login=hidden'
-                    - 'passwd=hoonetorg'
-                - cibname: cib_for_stonith
-    '''
-    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
-    stonith_create_required = False
-
-    cibfile = None
-    if isinstance(cibname, six.string_types):
-        cibfile = _get_cibfile(cibname)
-
-    is_existing_cmd = ['pcs']
-    if isinstance(cibfile, six.string_types):
-        is_existing_cmd += ['-f', cibfile]
-    is_existing_cmd += ['stonith', 'show', stonith_id]
-
-    is_existing = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
-    log.trace('Output of pcs stonith show {0}: {1}'.format(stonith_id, str(is_existing)))
-
-    if is_existing['retcode'] in [0]:
-        ret['comment'] += 'Stonith resource {0} is already existing\n'.format(stonith_id)
-    else:
-        stonith_create_required = True
-
-    if not stonith_create_required:
-        return ret
-
-    if __opts__['test']:
-        ret['result'] = None
-        ret['comment'] += 'Stonith resource {0} is set to be created\n'.format(stonith_id)
-        return ret
-
-    if not isinstance(stonith_device_options, (list, tuple)):
-        stonith_device_options = []
-
-    stonith_create = __salt__['pcs.stonith_create'](
-        stonith_id=stonith_id,
-        stonith_device_type=stonith_device_type,
-        stonith_device_options=stonith_device_options,
-        cibfile=cibfile)
-
-    log.trace('Output of pcs.stonith_create: ' + str(stonith_create))
-
-    if stonith_create['retcode'] in [0]:
-        ret['comment'] += 'Created stonith resource {0}\n'.format(stonith_id)
-        ret['changes'].update({stonith_id: {'old': '', 'new': stonith_id}})
-    else:
-        ret['result'] = False
-        ret['comment'] += 'Failed to create stonith resource {0}\n'.format(stonith_id)
 
     log.trace('ret: ' + str(ret))
 
@@ -705,6 +685,94 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
     return ret
 
 
+def stonith_created(name, stonith_id, stonith_device_type, stonith_device_options=None, cibname=None):
+    '''
+    Ensure that a fencing resource is created
+
+    Should be run on one cluster node only
+    (there may be races)
+    Can only be run on a node with a functional pacemaker/corosync
+
+    name
+        Irrelevant, not used (recommended: pcs_stonith__created_{{stonith_id}})
+    stonith_id
+        name for the stonith resource
+    stonith_device_type
+        name of the stonith agent fence_eps, fence_xvm f.e.
+    stonith_device_options
+        additional options for creating the stonith resource
+    cibname
+        use a cached CIB-file named like cibname instead of the live CIB for manipulation
+
+    Example:
+
+    .. code-block:: yaml
+        pcs_stonith__created_my_fence_eps:
+            pcs.stonith_created:
+                - stonith_id: my_fence_eps
+                - stonith_device_type: fence_eps
+                - stonith_device_options:
+                    - 'pcmk_host_map=node1.example.org:01;node2.example.org:02'
+                    - 'ipaddr=myepsdevice.example.org'
+                    - 'power_wait=5'
+                    - 'verbose=1'
+                    - 'debug=/var/log/pcsd/my_fence_eps.log'
+                    - 'login=hidden'
+                    - 'passwd=hoonetorg'
+                - cibname: cib_for_stonith
+    '''
+#    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+#    stonith_create_required = False
+#
+#    cibfile = None
+#    if isinstance(cibname, six.string_types):
+#        cibfile = _get_cibfile(cibname)
+#
+#    is_existing_cmd = ['pcs']
+#    if isinstance(cibfile, six.string_types):
+#        is_existing_cmd += ['-f', cibfile]
+#    is_existing_cmd += ['stonith', 'show', stonith_id]
+#
+#    is_existing = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
+#    log.trace('Output of pcs stonith show {0}: {1}'.format(stonith_id, str(is_existing)))
+#
+#    if is_existing['retcode'] in [0]:
+#        ret['comment'] += 'Stonith resource {0} is already existing\n'.format(stonith_id)
+#    else:
+#        stonith_create_required = True
+#
+#    if not stonith_create_required:
+#        return ret
+#
+#    if __opts__['test']:
+#        ret['result'] = None
+#        ret['comment'] += 'Stonith resource {0} is set to be created\n'.format(stonith_id)
+#        return ret
+#
+#    if not isinstance(stonith_device_options, (list, tuple)):
+#        stonith_device_options = []
+#
+#    stonith_create = __salt__['pcs.stonith_create'](
+#        stonith_id=stonith_id,
+#        stonith_device_type=stonith_device_type,
+#        stonith_device_options=stonith_device_options,
+#        cibfile=cibfile)
+#
+#    log.trace('Output of pcs.stonith_create: ' + str(stonith_create))
+#
+#    if stonith_create['retcode'] in [0]:
+#        ret['comment'] += 'Created stonith resource {0}\n'.format(stonith_id)
+#        ret['changes'].update({stonith_id: {'old': '', 'new': stonith_id}})
+#    else:
+#        ret['result'] = False
+#        ret['comment'] += 'Failed to create stonith resource {0}\n'.format(stonith_id)
+#
+#    log.trace('ret: ' + str(ret))
+#
+#    return ret
+    return _item_created(name=name, item='stonith', item_id=stonith_id, item_type=stonith_device_type, extra_args=stonith_device_options, cibname=cibname)
+
+
 def resource_created(name, resource_id, resource_type, resource_options=None, cibname=None):
     '''
     Ensure that a resource is created
@@ -736,52 +804,53 @@ def resource_created(name, resource_id, resource_type, resource_options=None, ci
                     - '--master'
                 - cibname: cib_for_galera
     '''
-    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
-    resource_create_required = False
-
-    cibfile = None
-    if isinstance(cibname, six.string_types):
-        cibfile = _get_cibfile(cibname)
-
-    is_existing_cmd = ['pcs']
-    if isinstance(cibfile, six.string_types):
-        is_existing_cmd += ['-f', cibfile]
-    is_existing_cmd += ['resource', 'show', resource_id]
-
-    is_existing = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
-    log.trace('Output of pcs resource show {0}: {1}'.format(resource_id, str(is_existing)))
-
-    if is_existing['retcode'] in [0]:
-        ret['comment'] += 'Resource {0} is already existing\n'.format(resource_id)
-    else:
-        resource_create_required = True
-
-    if not resource_create_required:
-        return ret
-
-    if __opts__['test']:
-        ret['result'] = None
-        ret['comment'] += 'Resource {0} is set to be created\n'.format(resource_id)
-        return ret
-
-    if not isinstance(resource_options, (list, tuple)):
-        resource_options = []
-
-    resource_create = __salt__['pcs.resource_create'](
-        resource_id=resource_id,
-        resource_type=resource_type,
-        resource_options=resource_options,
-        cibfile=cibfile)
-
-    log.trace('Output of pcs.resource_create: ' + str(resource_create))
-
-    if resource_create['retcode'] in [0]:
-        ret['comment'] += 'Created resource {0}\n'.format(resource_id)
-        ret['changes'].update({resource_id: {'old': '', 'new': resource_id}})
-    else:
-        ret['result'] = False
-        ret['comment'] += 'Failed to create resource {0}\n'.format(resource_id)
-
-    log.trace('ret: ' + str(ret))
-
-    return ret
+#    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+#    resource_create_required = False
+#
+#    cibfile = None
+#    if isinstance(cibname, six.string_types):
+#        cibfile = _get_cibfile(cibname)
+#
+#    is_existing_cmd = ['pcs']
+#    if isinstance(cibfile, six.string_types):
+#        is_existing_cmd += ['-f', cibfile]
+#    is_existing_cmd += ['resource', 'show', resource_id]
+#
+#    is_existing = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
+#    log.trace('Output of pcs resource show {0}: {1}'.format(resource_id, str(is_existing)))
+#
+#    if is_existing['retcode'] in [0]:
+#        ret['comment'] += 'Resource {0} is already existing\n'.format(resource_id)
+#    else:
+#        resource_create_required = True
+#
+#    if not resource_create_required:
+#        return ret
+#
+#    if __opts__['test']:
+#        ret['result'] = None
+#        ret['comment'] += 'Resource {0} is set to be created\n'.format(resource_id)
+#        return ret
+#
+#    if not isinstance(resource_options, (list, tuple)):
+#        resource_options = []
+#
+#    resource_create = __salt__['pcs.resource_create'](
+#        resource_id=resource_id,
+#        resource_type=resource_type,
+#        resource_options=resource_options,
+#        cibfile=cibfile)
+#
+#    log.trace('Output of pcs.resource_create: ' + str(resource_create))
+#
+#    if resource_create['retcode'] in [0]:
+#        ret['comment'] += 'Created resource {0}\n'.format(resource_id)
+#        ret['changes'].update({resource_id: {'old': '', 'new': resource_id}})
+#    else:
+#        ret['result'] = False
+#        ret['comment'] += 'Failed to create resource {0}\n'.format(resource_id)
+#
+#    log.trace('ret: ' + str(ret))
+#
+#    return ret
+    return _item_created(name=name, item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibname=cibname)
