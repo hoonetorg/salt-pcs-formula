@@ -101,6 +101,8 @@ def _item_created(name, item, item_id, item_type, show='show', create='create', 
         id of the item
     item_type
         item type
+    show
+        show command (probably None, default: show)
     create
         create command (create or set f.e., default: create)
     extra_args
@@ -109,6 +111,7 @@ def _item_created(name, item, item_id, item_type, show='show', create='create', 
         use a cached CIB-file named like cibname instead of the live CIB
     '''
     ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+    item_create_required = True
 
     cibfile = None
     if isinstance(cibname, six.string_types):
@@ -117,20 +120,25 @@ def _item_created(name, item, item_id, item_type, show='show', create='create', 
     if not isinstance(extra_args, (list, tuple)):
         extra_args = []
 
+    # split off key and value (item_id contains =)
     item_id_key = item_id
     item_id_value = None
     if '=' in item_id:
-        item_id_key_parse = None
         item_id_key = item_id.split('=')[0].strip()
         item_id_value = item_id.replace(item_id.split('=')[0] + '=', '').strip()
         log.trace('item_id_key={0} item_id_value={1}'.format(str(item_id_key), str(item_id_value)))
 
-    is_existing = __salt__['pcs.item_show'](item=item, item_id=item_id_key_parse, show=show, cibfile=cibfile)
-    log.trace('Output of pcs.item_show item={0} item_id={1} cibfile={2}: {3}'.format(str(item), str(item_id_key_parse), str(cibfile), str(is_existing)))
+    # constraints, properties, resource defaults or resource op defaults 
+    # do not support specifying an id on 'show' command
+    item_id_show = item_id
+    if item in ['constraint'] or '=' in item_id:
+        item_id_show = None
 
+    is_existing = __salt__['pcs.item_show'](item=item, item_id=item_id_show, item_type=item_type, show=show, cibfile=cibfile)
+    log.trace('Output of pcs.item_show item={0} item_id={1} item_type={2} cibfile={3}: {4}'.format(str(item), str(item_id_show), str(item_type), str(cibfile), str(is_existing)))
+
+    # key,value pairs (item_id contains =) - match key and value
     if item_id_value is not None:
-        item_create_required = True
-
         for line in is_existing['stdout'].splitlines():
             if len(line.split(':')) in [2]:
                 key = line.split(':')[0].strip()
@@ -138,11 +146,18 @@ def _item_created(name, item, item_id, item_type, show='show', create='create', 
                 if item_id_key in [key]:
                     if item_id_value in [value]:
                         item_create_required = False
-    else: 
-        item_create_required = False
 
-        if is_existing['retcode'] not in [0]:
-            item_create_required = True
+    # constraints match on '(id:<id>)'
+    elif item in ['constraint']:
+        for line in is_existing['stdout'].splitlines():
+            if '(id:{0})'.format(item_id) in line:
+                item_create_required = False
+
+    # item_id was provided, 
+    # return code 0 indicates, that resource already exists
+    else: 
+        if is_existing['retcode'] in [0]:
+            item_create_required = False
 
     if not item_create_required:
         ret['comment'] += '{0} {1} ({2}) is already existing\n'.format(str(item), str(item_id), str(item_type))
@@ -199,7 +214,7 @@ def auth(name, nodes, pcsuser='hacluster', pcspasswd='hacluster', extra_args=Non
                     - node1.example.com
                     - node2.example.com
                 - pcsuser: hacluster
-                - pcspasswd: hacluster
+                - pcspasswd: hoonetorg
                 - extra_args: []
     '''
 
@@ -463,7 +478,7 @@ def cib_created(name, cibname, scope=None, extra_args=None):
     Example:
 
     .. code-block:: yaml
-        mysql__cib_created_cib_for_galera:
+        mysql_pcs__cib_created_cib_for_galera:
             pcs.cib_created:
                 - cibname: cib_for_galera
                 - scope: None
@@ -578,7 +593,7 @@ def cib_pushed(name, cibname, scope=None, extra_args=None):
     Example:
 
     .. code-block:: yaml
-        mysql__cib_pushed_cib_for_galera:
+        mysql_pcs__cib_pushed_cib_for_galera:
             pcs.cib_pushed:
                 - cibname: cib_for_galera
                 - scope: None
@@ -647,7 +662,7 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
     extra_args
         additional options for the pcs property command
     cibname
-        use a cached CIB-file named like cibname instead of the live CIB for manipulation
+        use a cached CIB-file named like cibname instead of the live CIB
 
     Example:
 
@@ -656,7 +671,7 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
             pcs.prop_is_set:
                 - prop: no-quorum-policy
                 - value: ignore
-                - cibname: cib_for_cluster_properties
+                - cibname: cib_for_cluster_settings
     '''
     return _item_created(name=name, item='property', item_id='{0}={1}'.format(prop, value), item_type=None, create='set', extra_args=extra_args, cibname=cibname)
 
@@ -686,8 +701,8 @@ def resource_defaults_to(name, default, value, extra_args=None, cibname=None):
         pcs_properties__resource_defaults_to_resource-stickiness:
             pcs.resource_defaults_to:
                 - default: resource-stickiness
-                - value: INFINITY
-                - cibname: cib_for_cluster_properties
+                - value: 100
+                - cibname: cib_for_cluster_settings
     '''
     return _item_created(name=name, item='resource', item_id='{0}={1}'.format(default, value), item_type=None, show='defaults', create='defaults', extra_args=extra_args, cibname=cibname)
 
@@ -718,7 +733,7 @@ def resource_op_defaults_to(name, op_default, value, extra_args=None, cibname=No
             pcs.resource_op_defaults_to:
                 - op_default: monitor-interval
                 - value: 60s
-                - cibname: cib_for_cluster_properties
+                - cibname: cib_for_cluster_settings
     '''
     return _item_created(name=name, item='resource', item_id='{0}={1}'.format(op_default, value), item_type=None, show=['op', 'defaults'], create=['op', 'defaults'], extra_args=extra_args, cibname=cibname)
 
@@ -740,21 +755,21 @@ def stonith_created(name, stonith_id, stonith_device_type, stonith_device_option
     stonith_device_options
         additional options for creating the stonith resource
     cibname
-        use a cached CIB-file named like cibname instead of the live CIB for manipulation
+        use a cached CIB-file named like cibname instead of the live CIB
 
     Example:
 
     .. code-block:: yaml
-        pcs_stonith__created_my_fence_eps:
+        pcs_stonith__created_eps_fence:
             pcs.stonith_created:
-                - stonith_id: my_fence_eps
+                - stonith_id: eps_fence
                 - stonith_device_type: fence_eps
                 - stonith_device_options:
                     - 'pcmk_host_map=node1.example.org:01;node2.example.org:02'
                     - 'ipaddr=myepsdevice.example.org'
                     - 'power_wait=5'
                     - 'verbose=1'
-                    - 'debug=/var/log/pcsd/my_fence_eps.log'
+                    - 'debug=/var/log/pcsd/eps_fence.log'
                     - 'login=hidden'
                     - 'passwd=hoonetorg'
                 - cibname: cib_for_stonith
@@ -779,14 +794,14 @@ def resource_created(name, resource_id, resource_type, resource_options=None, ci
     resource_options
         additional options for creating the resource
     cibname
-        use a cached CIB-file named like cibname instead of the live CIB for manipulation
+        use a cached CIB-file named like cibname instead of the live CIB
 
     Example:
 
     .. code-block:: yaml
-        mysql__resource_created_p_galera:
+        mysql_pcs__resource_created_galera:
             pcs.resource_created:
-                - resource_id: p_galera
+                - resource_id: galera
                 - resource_type: "ocf:heartbeat:galera"
                 - resource_options:
                     - 'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org'
@@ -794,3 +809,39 @@ def resource_created(name, resource_id, resource_type, resource_options=None, ci
                 - cibname: cib_for_galera
     '''
     return _item_created(name=name, item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibname=cibname)
+
+
+def constraint_created(name, constraint_id, constraint_type, constraint_options=None, cibname=None):
+    '''
+    Ensure that a constraint is created
+
+    Should be run on one cluster node only
+    (there may be races)
+    Can only be run on a node with a functional pacemaker/corosync
+
+    name
+        Irrelevant, not used (recommended: {{formulaname}}__constraint_created_{{constraint_id}})
+    constraint_id
+        name for the constraint (try first to create manually to find out the autocreated name)
+    constraint_type
+        constraint type (location, colocation, order)
+    constraint_options
+        options for creating the constraint
+    cibname
+        use a cached CIB-file named like cibname instead of the live CIB
+
+    Example:
+
+    .. code-block:: yaml
+        haproxy_pcs__constraint_created_colocation-vip_galera-haproxy-clone-INFINITY:
+            pcs.constraint_created:
+                - constraint_id: colocation-vip_galera-haproxy-clone-INFINITY
+                - constraint_type: colocation
+                - constraint_options:
+                    - 'add'
+                    - 'vip_galera'
+                    - 'with'
+                    - 'haproxy-clone'
+                - cibname: cib_for_haproxy
+    '''
+    return _item_created(name=name, item='constraint', item_id=constraint_id, item_type=constraint_type, create=None, extra_args=constraint_options, cibname=cibname)

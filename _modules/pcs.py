@@ -26,32 +26,42 @@ def __virtual__():
     return False
 
 
-def item_show(item, item_id=None, show='show', extra_args=None, cibfile=None):
+def item_show(item, item_id=None, item_type=None, show='show', extra_args=None, cibfile=None):
     '''
     Show an item via pcs command
+    (mainly for use with the pcs state module)
 
     item
         config, property, resource, constraint etc.
     item_id
         id of the item
+    item_type
+        item type 
+    show
+        show command (probably None, default: show)
     extra_args
         additional options for the pcs command 
     cibfile
         use cibfile instead of the live CIB
     '''
     cmd = ['pcs']
+
     if isinstance(cibfile, six.string_types):
         cmd += ['-f', cibfile]
 
     if isinstance(item, six.string_types):
-      cmd += [item]
+        cmd += [item]
     elif isinstance(item, (list, tuple)):
-      cmd += item
+        cmd += item
+
+    # constraint command follows a different order
+    if item in [ 'constraint' ]:
+        cmd += [item_type]
 
     if isinstance(show, six.string_types):
-      cmd += [show]
+        cmd += [show]
     elif isinstance(show, (list, tuple)):
-      cmd += show
+        cmd += show
 
     if isinstance(item_id, six.string_types):
         cmd += [item_id]
@@ -59,12 +69,18 @@ def item_show(item, item_id=None, show='show', extra_args=None, cibfile=None):
     if isinstance(extra_args, (list, tuple)):
         cmd += extra_args
 
+    # constraint command only shows id, when using '--full'-parameter
+    if item in [ 'constraint' ]:
+        if not isinstance(extra_args, (list, tuple)) or '--full' not in extra_args:
+            cmd += ['--full']
+
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
 
 
 def item_create(item, item_id, item_type, create='create', extra_args=None, cibfile=None):
     '''
     Create an item via pcs command
+    (mainly for use with the pcs state module)
 
     item
         config, property, resource, constraint etc.
@@ -88,16 +104,27 @@ def item_create(item, item_id, item_type, create='create', extra_args=None, cibf
     elif isinstance(item, (list, tuple)):
       cmd += item
 
+    # constraint command follows a different order
+    if item in [ 'constraint' ]:
+        if isinstance(item_type, six.string_types):
+            cmd += [item_type]
+
     if isinstance(create, six.string_types):
       cmd += [create]
     elif isinstance(create, (list, tuple)):
       cmd += create
 
-    cmd += [item_id]
+    # constraint command needs item_id in format 'id=<id' after all params
+    # constraint command follows a different order
+    if item not in [ 'constraint' ]:
+        cmd += [item_id]
+        if isinstance(item_type, six.string_types):
+            cmd += [item_type]
 
-    if isinstance(item_type, six.string_types):
-        cmd += [item_type]
     if isinstance(extra_args, (list, tuple)):
+        # constraint command needs item_id in format 'id=<id' after all params
+        if item in [ 'constraint' ]:
+            extra_args = extra_args + ['id={0}'.format(item_id)]
         cmd += extra_args
 
     return __salt__['cmd.run_all'](cmd, output_loglevel='trace', python_shell=False)
@@ -166,7 +193,7 @@ def cluster_setup(nodes, pcsclustername='pcscluster', extra_args=None):
     nodes
         a list of nodes which should be set up
     pcsclustername
-        Name of the Pacemaker cluster
+        Name of the Pacemaker cluster (default: pcscluster)
     extra_args
         list of extra option for the \'pcs cluster setup\' command
 
@@ -270,6 +297,9 @@ def config_show(cibfile=None):
     '''
     Show config of cluster
 
+    cibfile
+        name/path of the file containing the CIB
+
     CLI Example:
 
     .. code-block:: bash
@@ -340,7 +370,7 @@ def stonith_show(stonith_id, extra_args=None, cibfile=None):
 
     .. code-block:: bash
 
-        salt '*' pcs.stonith_show stonith_id='my_fence_eps' \\
+        salt '*' pcs.stonith_show stonith_id='eps_fence' \\
                                   cibfile='/tmp/2_node_cluster.cib'
     '''
     return item_show(item='stonith', item_id=stonith_id, extra_args=extra_args, cibfile=cibfile)
@@ -362,7 +392,7 @@ def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None,
 
     .. code-block:: bash
 
-        salt '*' pcs.stonith_create stonith_id='my_fence_eps' \\
+        salt '*' pcs.stonith_create stonith_id='eps_fence' \\
                                     stonith_device_type='fence_eps' \\
                                     stonith_device_options="[ \\
                                       'pcmk_host_map=node1.example.org:01;node2.example.org:02', \\
@@ -370,7 +400,7 @@ def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None,
                                       'action=reboot', \\
                                       'power_wait=5', \\
                                       'verbose=1', \\
-                                      'debug=/var/log/pcsd/my_fence_eps.log', \\
+                                      'debug=/var/log/pcsd/eps_fence.log', \\
                                       'login=hidden', \\
                                       'passwd=hoonetorg' \\
                                     ]" \\
@@ -394,7 +424,7 @@ def resource_show(resource_id, extra_args=None, cibfile=None):
 
     .. code-block:: bash
 
-        salt '*' pcs.resource_show resource_id='p_galera' \\
+        salt '*' pcs.resource_show resource_id='galera' \\
                                    cibfile='/tmp/cib_for_galera.cib'
     '''
     return item_show(item='resource', item_id=resource_id, extra_args=extra_args, cibfile=cibfile)
@@ -417,7 +447,7 @@ def resource_create(resource_id, resource_type, resource_options=None, cibfile=N
 
     .. code-block:: bash
 
-        salt '*' pcs.resource_create resource_id='p_galera' \\
+        salt '*' pcs.resource_create resource_id='galera' \\
                                      resource_type='ocf:heartbeat:galera' \\
                                      resource_options="[ \\
                                        'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org' \\
