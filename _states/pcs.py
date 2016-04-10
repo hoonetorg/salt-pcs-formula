@@ -8,6 +8,143 @@ with the Pacemaker/Corosync configuration system(PCS)
 
 :depends: pcs
 
+Walkthrough of a complete pcs cluster setup:
+
+Requirements:
+PCS is installed, pcs service is started and
+the password for the hacluster user is set and known.
+
+Remark on the cibname variable used in the examples:
+The use of the cibname varible is optional.
+Use it only if you want to deploy your changes into a cibfile first and then push it.
+This makes only sense if you want to deploy multiple changes (which require each other) at ones to the cluster.
+
+At first the cibfile must be created:
+
+    .. code-block:: yaml
+        mysql_pcs__cib_created_cib_for_galera:
+            pcs.cib_created:
+                - cibname: cib_for_galera
+                - scope: None
+                - extra_args: None
+
+Then the cibfile can be modified by creating resources (creating only 1 resource for demonstration, see also 7.):
+
+    .. code-block:: yaml
+        mysql_pcs__resource_created_galera:
+            pcs.resource_created:
+                - resource_id: galera
+                - resource_type: "ocf:heartbeat:galera"
+                - resource_options:
+                    - 'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org'
+                    - '--master'
+                - cibname: cib_for_galera
+
+After modifying the cibfile it can be pushed to the live CIB in the cluster:
+
+   .. code-block:: yaml
+        mysql_pcs__cib_pushed_cib_for_galera:
+            pcs.cib_pushed:
+                - cibname: cib_for_galera
+                - scope: None
+                - extra_args: None
+
+Create a cluster from scratch:
+1. Authorize nodes to each other:
+
+    .. code-block:: yaml
+        pcs_auth__auth:
+            pcs.auth:
+                - nodes:
+                    - node1.example.com
+                    - node2.example.com
+                - pcsuser: hacluster
+                - pcspasswd: hoonetorg
+                - extra_args: []
+
+2. Do the initial cluster setup:
+
+    .. code-block:: yaml
+        pcs_setup__setup:
+            pcs.cluster_setup:
+                - nodes:
+                    - node1.example.com
+                    - node2.example.com
+                - pcsclustername: pcscluster
+                - extra_args:
+                    - '--start'
+                    - '--enable'
+    
+3. Optional: Set cluster properties:
+
+    .. code-block:: yaml
+        pcs_properties__prop_is_set_no-quorum-policy:
+            pcs.prop_is_set:
+                - prop: no-quorum-policy
+                - value: ignore
+                - cibname: cib_for_cluster_settings
+
+4. Optional: Set resource defaults:
+
+    .. code-block:: yaml
+        pcs_properties__resource_defaults_to_resource-stickiness:
+            pcs.resource_defaults_to:
+                - default: resource-stickiness
+                - value: 100
+                - cibname: cib_for_cluster_settings
+
+5. Optional: Set resource op defaults:
+
+    .. code-block:: yaml
+        pcs_properties__resource_op_defaults_to_monitor-interval:
+            pcs.resource_op_defaults_to:
+                - op_default: monitor-interval
+                - value: 60s
+                - cibname: cib_for_cluster_settings
+
+6. Configure Fencing (!is not optional on production ready cluster!):
+
+    .. code-block:: yaml
+        pcs_stonith__created_eps_fence:
+            pcs.stonith_created:
+                - stonith_id: eps_fence
+                - stonith_device_type: fence_eps
+                - stonith_device_options:
+                    - 'pcmk_host_map=node1.example.org:01;node2.example.org:02'
+                    - 'ipaddr=myepsdevice.example.org'
+                    - 'power_wait=5'
+                    - 'verbose=1'
+                    - 'debug=/var/log/pcsd/eps_fence.log'
+                    - 'login=hidden'
+                    - 'passwd=hoonetorg'
+                - cibname: cib_for_stonith
+
+7. Add resources to your cluster:
+
+    .. code-block:: yaml
+        mysql_pcs__resource_created_galera:
+            pcs.resource_created:
+                - resource_id: galera
+                - resource_type: "ocf:heartbeat:galera"
+                - resource_options:
+                    - 'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org'
+                    - '--master'
+                - cibname: cib_for_galera
+
+8. Optional: Add constraints (locations, colocations, orders):
+
+    .. code-block:: yaml
+        haproxy_pcs__constraint_created_colocation-vip_galera-haproxy-clone-INFINITY:
+            pcs.constraint_created:
+                - constraint_id: colocation-vip_galera-haproxy-clone-INFINITY
+                - constraint_type: colocation
+                - constraint_options:
+                    - 'add'
+                    - 'vip_galera'
+                    - 'with'
+                    - 'haproxy-clone'
+                - cibname: cib_for_haproxy
+
 .. versionadded:: 2016.3.0
 '''
 from __future__ import absolute_import
