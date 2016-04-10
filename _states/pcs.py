@@ -74,7 +74,7 @@ Create a cluster from scratch:
                 - extra_args:
                     - '--start'
                     - '--enable'
-    
+
 3. Optional: Set cluster properties:
 
     .. code-block:: yaml
