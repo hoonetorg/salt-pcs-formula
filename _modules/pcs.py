@@ -36,11 +36,11 @@ def item_show(item, item_id=None, item_type=None, show='show', extra_args=None, 
     item_id
         id of the item
     item_type
-        item type 
+        item type
     show
         show command (probably None, default: show)
     extra_args
-        additional options for the pcs command 
+        additional options for the pcs command
     cibfile
         use cibfile instead of the live CIB
     '''
@@ -55,7 +55,7 @@ def item_show(item, item_id=None, item_type=None, show='show', extra_args=None, 
         cmd += item
 
     # constraint command follows a different order
-    if item in [ 'constraint' ]:
+    if item in ['constraint']:
         cmd += [item_type]
 
     if isinstance(show, six.string_types):
@@ -70,7 +70,7 @@ def item_show(item, item_id=None, item_type=None, show='show', extra_args=None, 
         cmd += extra_args
 
     # constraint command only shows id, when using '--full'-parameter
-    if item in [ 'constraint' ]:
+    if item in ['constraint']:
         if not isinstance(extra_args, (list, tuple)) or '--full' not in extra_args:
             cmd += ['--full']
 
@@ -87,11 +87,11 @@ def item_create(item, item_id, item_type, create='create', extra_args=None, cibf
     item_id
         id of the item
     item_type
-        item type 
+        item type
     create
         create command (create or set f.e., default: create)
     extra_args
-        additional options for the pcs command 
+        additional options for the pcs command
     cibfile
         use cibfile instead of the live CIB
     '''
@@ -100,30 +100,30 @@ def item_create(item, item_id, item_type, create='create', extra_args=None, cibf
         cmd += ['-f', cibfile]
 
     if isinstance(item, six.string_types):
-      cmd += [item]
+        cmd += [item]
     elif isinstance(item, (list, tuple)):
-      cmd += item
+        cmd += item
 
     # constraint command follows a different order
-    if item in [ 'constraint' ]:
+    if item in ['constraint']:
         if isinstance(item_type, six.string_types):
             cmd += [item_type]
 
     if isinstance(create, six.string_types):
-      cmd += [create]
+        cmd += [create]
     elif isinstance(create, (list, tuple)):
-      cmd += create
+        cmd += create
 
     # constraint command needs item_id in format 'id=<id' after all params
     # constraint command follows a different order
-    if item not in [ 'constraint' ]:
+    if item not in ['constraint']:
         cmd += [item_id]
         if isinstance(item_type, six.string_types):
             cmd += [item_type]
 
     if isinstance(extra_args, (list, tuple)):
         # constraint command needs item_id in format 'id=<id' after all params
-        if item in [ 'constraint' ]:
+        if item in ['constraint']:
             extra_args = extra_args + ['id={0}'.format(item_id)]
         cmd += extra_args
 
@@ -255,7 +255,7 @@ def cib_create(cibfile, scope='configuration', extra_args=None):
     .. code-block:: bash
 
         salt '*' pcs.cib_create cibfile='/tmp/VIP_apache_1.cib' \\
-                                'scope=False' 
+                                'scope=False'
     '''
     cmd = ['pcs', 'cluster', 'cib', cibfile]
     if isinstance(scope, six.string_types):
@@ -282,7 +282,7 @@ def cib_push(cibfile, scope='configuration', extra_args=None):
     .. code-block:: bash
 
         salt '*' pcs.cib_push cibfile='/tmp/VIP_apache_1.cib' \\
-                              'scope=False' 
+                              'scope=False'
     '''
     cmd = ['pcs', 'cluster', 'cib-push', cibfile]
     if isinstance(scope, six.string_types):
@@ -352,7 +352,12 @@ def prop_set(prop, value, extra_args=None, cibfile=None):
                               value='ignore' \\
                               cibfile='/tmp/2_node_cluster.cib'
     '''
-    return item_create(item='property', item_id='{0}={1}'.format(prop, value), item_type=None, create='set', extra_args=extra_args, cibfile=cibfile)
+    return item_create(item='property',
+                       item_id='{0}={1}'.format(prop, value),
+                       item_type=None,
+                       create='set',
+                       extra_args=extra_args,
+                       cibfile=cibfile)
 
 
 def stonith_show(stonith_id, extra_args=None, cibfile=None):
@@ -374,6 +379,7 @@ def stonith_show(stonith_id, extra_args=None, cibfile=None):
                                   cibfile='/tmp/2_node_cluster.cib'
     '''
     return item_show(item='stonith', item_id=stonith_id, extra_args=extra_args, cibfile=cibfile)
+
 
 def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None, cibfile=None):
     '''
@@ -406,7 +412,11 @@ def stonith_create(stonith_id, stonith_device_type, stonith_device_options=None,
                                     ]" \\
                                     cibfile='/tmp/cib_for_stonith.cib'
     '''
-    return item_create(item='stonith', item_id=stonith_id, item_type=stonith_device_type, extra_args=stonith_device_options, cibfile=cibfile)
+    return item_create(item='stonith',
+                       item_id=stonith_id,
+                       item_type=stonith_device_type,
+                       extra_args=stonith_device_options,
+                       cibfile=cibfile)
 
 
 def resource_show(resource_id, extra_args=None, cibfile=None):
@@ -416,7 +426,7 @@ def resource_show(resource_id, extra_args=None, cibfile=None):
     resource_id
         name of the resource
     extra_args
-        additional options for the pcs command 
+        additional options for the pcs command
     cibfile
         use cibfile instead of the live CIB
 
@@ -448,11 +458,15 @@ def resource_create(resource_id, resource_type, resource_options=None, cibfile=N
     .. code-block:: bash
 
         salt '*' pcs.resource_create resource_id='galera' \\
-                                     resource_type='ocf:heartbeat:galera' \\
-                                     resource_options="[ \\
-                                       'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org' \\
-                                       '--master' \\
-                                     ]" \\
-                                     cibfile='/tmp/cib_for_galera.cib'
+                         resource_type='ocf:heartbeat:galera' \\
+                         resource_options="[ \\
+                             'wsrep_cluster_address=gcomm://node1.example.org,node2.example.org,node3.example.org' \\
+                             '--master' \\
+                         ]" \\
+                         cibfile='/tmp/cib_for_galera.cib'
     '''
-    return item_create(item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibfile=cibfile)
+    return item_create(item='resource',
+                       item_id=resource_id,
+                       item_type=resource_type,
+                       extra_args=resource_options,
+                       cibfile=cibfile)

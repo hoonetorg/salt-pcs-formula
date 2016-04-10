@@ -106,7 +106,7 @@ def _item_created(name, item, item_id, item_type, show='show', create='create', 
     create
         create command (create or set f.e., default: create)
     extra_args
-        additional options for the pcs command 
+        additional options for the pcs command
     cibname
         use a cached CIB-file named like cibname instead of the live CIB
     '''
@@ -128,14 +128,23 @@ def _item_created(name, item, item_id, item_type, show='show', create='create', 
         item_id_value = item_id.replace(item_id.split('=')[0] + '=', '').strip()
         log.trace('item_id_key={0} item_id_value={1}'.format(str(item_id_key), str(item_id_value)))
 
-    # constraints, properties, resource defaults or resource op defaults 
+    # constraints, properties, resource defaults or resource op defaults
     # do not support specifying an id on 'show' command
     item_id_show = item_id
     if item in ['constraint'] or '=' in item_id:
         item_id_show = None
 
-    is_existing = __salt__['pcs.item_show'](item=item, item_id=item_id_show, item_type=item_type, show=show, cibfile=cibfile)
-    log.trace('Output of pcs.item_show item={0} item_id={1} item_type={2} cibfile={3}: {4}'.format(str(item), str(item_id_show), str(item_type), str(cibfile), str(is_existing)))
+    is_existing = __salt__['pcs.item_show'](item=item,
+                                            item_id=item_id_show,
+                                            item_type=item_type,
+                                            show=show,
+                                            cibfile=cibfile)
+    log.trace('Output of pcs.item_show item={0} item_id={1} item_type={2} cibfile={3}: {4}'.format(
+                                                                                                str(item),
+                                                                                                str(item_id_show),
+                                                                                                str(item_type),
+                                                                                                str(cibfile),
+                                                                                                str(is_existing)))
 
     # key,value pairs (item_id contains =) - match key and value
     if item_id_value is not None:
@@ -153,9 +162,9 @@ def _item_created(name, item, item_id, item_type, show='show', create='create', 
             if '(id:{0})'.format(item_id) in line:
                 item_create_required = False
 
-    # item_id was provided, 
+    # item_id was provided,
     # return code 0 indicates, that resource already exists
-    else: 
+    else:
         if is_existing['retcode'] in [0]:
             item_create_required = False
 
@@ -673,7 +682,13 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
                 - value: ignore
                 - cibname: cib_for_cluster_settings
     '''
-    return _item_created(name=name, item='property', item_id='{0}={1}'.format(prop, value), item_type=None, create='set', extra_args=extra_args, cibname=cibname)
+    return _item_created(name=name,
+                         item='property',
+                         item_id='{0}={1}'.format(prop, value),
+                         item_type=None,
+                         create='set',
+                         extra_args=extra_args,
+                         cibname=cibname)
 
 
 def resource_defaults_to(name, default, value, extra_args=None, cibname=None):
@@ -704,7 +719,14 @@ def resource_defaults_to(name, default, value, extra_args=None, cibname=None):
                 - value: 100
                 - cibname: cib_for_cluster_settings
     '''
-    return _item_created(name=name, item='resource', item_id='{0}={1}'.format(default, value), item_type=None, show='defaults', create='defaults', extra_args=extra_args, cibname=cibname)
+    return _item_created(name=name,
+                         item='resource',
+                         item_id='{0}={1}'.format(default, value),
+                         item_type=None,
+                         show='defaults',
+                         create='defaults',
+                         extra_args=extra_args,
+                         cibname=cibname)
 
 
 def resource_op_defaults_to(name, op_default, value, extra_args=None, cibname=None):
@@ -735,7 +757,14 @@ def resource_op_defaults_to(name, op_default, value, extra_args=None, cibname=No
                 - value: 60s
                 - cibname: cib_for_cluster_settings
     '''
-    return _item_created(name=name, item='resource', item_id='{0}={1}'.format(op_default, value), item_type=None, show=['op', 'defaults'], create=['op', 'defaults'], extra_args=extra_args, cibname=cibname)
+    return _item_created(name=name,
+                         item='resource',
+                         item_id='{0}={1}'.format(op_default, value),
+                         item_type=None,
+                         show=['op', 'defaults'],
+                         create=['op', 'defaults'],
+                         extra_args=extra_args,
+                         cibname=cibname)
 
 
 def stonith_created(name, stonith_id, stonith_device_type, stonith_device_options=None, cibname=None):
@@ -774,7 +803,12 @@ def stonith_created(name, stonith_id, stonith_device_type, stonith_device_option
                     - 'passwd=hoonetorg'
                 - cibname: cib_for_stonith
     '''
-    return _item_created(name=name, item='stonith', item_id=stonith_id, item_type=stonith_device_type, extra_args=stonith_device_options, cibname=cibname)
+    return _item_created(name=name,
+                         item='stonith',
+                         item_id=stonith_id,
+                         item_type=stonith_device_type,
+                         extra_args=stonith_device_options,
+                         cibname=cibname)
 
 
 def resource_created(name, resource_id, resource_type, resource_options=None, cibname=None):
@@ -808,7 +842,12 @@ def resource_created(name, resource_id, resource_type, resource_options=None, ci
                     - '--master'
                 - cibname: cib_for_galera
     '''
-    return _item_created(name=name, item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibname=cibname)
+    return _item_created(name=name,
+                         item='resource',
+                         item_id=resource_id,
+                         item_type=resource_type,
+                         extra_args=resource_options,
+                         cibname=cibname)
 
 
 def constraint_created(name, constraint_id, constraint_type, constraint_options=None, cibname=None):
@@ -844,4 +883,10 @@ def constraint_created(name, constraint_id, constraint_type, constraint_options=
                     - 'haproxy-clone'
                 - cibname: cib_for_haproxy
     '''
-    return _item_created(name=name, item='constraint', item_id=constraint_id, item_type=constraint_type, create=None, extra_args=constraint_options, cibname=cibname)
+    return _item_created(name=name,
+                         item='constraint',
+                         item_id=constraint_id,
+                         item_type=constraint_type,
+                         create=None,
+                         extra_args=constraint_options,
+                         cibname=cibname)
