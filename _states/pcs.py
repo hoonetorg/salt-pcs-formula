@@ -89,7 +89,7 @@ def _get_cibfile_cksum(cibname):
     return cibfile_cksum
 
 
-def _item_created(name, item, item_id, item_type, create='create', extra_args=None, cibname=None):
+def _item_created(name, item, item_id, item_type, show='show', create='create', extra_args=None, cibname=None):
     '''
     Ensure that an item is created
 
@@ -109,30 +109,49 @@ def _item_created(name, item, item_id, item_type, create='create', extra_args=No
         use a cached CIB-file named like cibname instead of the live CIB
     '''
     ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
-    item_create_required = False
 
     cibfile = None
     if isinstance(cibname, six.string_types):
         cibfile = _get_cibfile(cibname)
 
-    is_existing = __salt__['pcs.item_show'](item=item, item_id=item_id, cibfile=cibfile)
-    log.trace('Output of pcs.item_show item={0} item_id={1} cibfile={2}: {3}'.format(str(item), str(item_id), str(cibfile), str(is_existing)))
+    if not isinstance(extra_args, (list, tuple)):
+        extra_args = []
 
-    if is_existing['retcode'] in [0]:
-        ret['comment'] += '{0} {1} is already existing\n'.format(str(item), str(item_id))
-    else:
+    item_id_key = item_id
+    item_id_value = None
+    if '=' in item_id:
+        item_id_key_parse = None
+        item_id_key = item_id.split('=')[0].strip()
+        item_id_value = item_id.replace(item_id.split('=')[0] + '=', '').strip()
+        log.trace('item_id_key={0} item_id_value={1}'.format(str(item_id_key), str(item_id_value)))
+
+    is_existing = __salt__['pcs.item_show'](item=item, item_id=item_id_key_parse, show=show, cibfile=cibfile)
+    log.trace('Output of pcs.item_show item={0} item_id={1} cibfile={2}: {3}'.format(str(item), str(item_id_key_parse), str(cibfile), str(is_existing)))
+
+    if item_id_value is not None:
         item_create_required = True
 
+        for line in is_existing['stdout'].splitlines():
+            if len(line.split(':')) in [2]:
+                key = line.split(':')[0].strip()
+                value = line.split(':')[1].strip()
+                if item_id_key in [key]:
+                    if item_id_value in [value]:
+                        item_create_required = False
+    else: 
+        item_create_required = False
+
+        if is_existing['retcode'] not in [0]:
+            item_create_required = True
+
     if not item_create_required:
+        ret['comment'] += '{0} {1} ({2}) is already existing\n'.format(str(item), str(item_id), str(item_type))
         return ret
 
     if __opts__['test']:
         ret['result'] = None
-        ret['comment'] += '{0} {1} is set to be created\n'.format(str(item), str(item_id))
+        ret['comment'] += '{0} {1} ({2}) is set to be created\n'.format(str(item), str(item_id), str(item_type))
         return ret
-
-    if not isinstance(extra_args, (list, tuple)):
-        extra_args = []
 
     item_create = __salt__['pcs.item_create'](
         item=item,
@@ -145,11 +164,11 @@ def _item_created(name, item, item_id, item_type, create='create', extra_args=No
     log.trace('Output of pcs.item_create: {0}'.format(str(item_create)))
 
     if item_create['retcode'] in [0]:
-        ret['comment'] += 'Created {0} {1}\n'.format(str(item), str(item_id))
-        ret['changes'].update({item_id: {'old': '', 'new': item_id}})
+        ret['comment'] += 'Created {0} {1} ({2})\n'.format(str(item), str(item_id), str(item_type))
+        ret['changes'].update({item_id: {'old': '', 'new': str(item_id)}})
     else:
         ret['result'] = False
-        ret['comment'] += 'Failed to create {0} {1}\n'.format(str(item), str(item_id))
+        ret['comment'] += 'Failed to create {0} {1} ({2})\n'.format(str(item), str(item_id), str(item_type))
 
     log.trace('ret: ' + str(ret))
 
@@ -620,7 +639,7 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
     (there may be races)
 
     name
-        Irrelevant, not used (recommended: pcs_property__prop_is_set_{{prop}})
+        Irrelevant, not used (recommended: pcs_properties__prop_is_set_{{prop}})
     prop
         name of the property
     value
@@ -633,56 +652,75 @@ def prop_is_set(name, prop, value, extra_args=None, cibname=None):
     Example:
 
     .. code-block:: yaml
-        pcs_property__prop_is_set_no-quorum-policy:
+        pcs_properties__prop_is_set_no-quorum-policy:
             pcs.prop_is_set:
                 - prop: no-quorum-policy
                 - value: ignore
                 - cibname: cib_for_cluster_properties
     '''
-    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
+    return _item_created(name=name, item='property', item_id='{0}={1}'.format(prop, value), item_type=None, create='set', extra_args=extra_args, cibname=cibname)
 
-    prop_set_required = True
 
-    cibfile = None
-    if isinstance(cibname, six.string_types):
-        cibfile = _get_cibfile(cibname)
+def resource_defaults_to(name, default, value, extra_args=None, cibname=None):
+    '''
+    Ensure a resource default in the cluster is set to a given value
 
-    if not isinstance(extra_args, (list, tuple)):
-        extra_args = []
+    Should be run on one cluster node only
+    (there may be races)
+    Can only be run on a node with a functional pacemaker/corosync
 
-    is_prop_set = __salt__['pcs.prop_show'](prop=prop, cibfile=cibfile)
-    log.trace('is_prop_set: {0}'.format(str(is_prop_set)))
+    name
+        Irrelevant, not used (recommended: pcs_properties__resource_defaults_to_{{default}})
+    default
+        name of the default resource property
+    value
+        value of the default resource property
+    extra_args
+        additional options for the pcs command
+    cibname
+        use a cached CIB-file named like cibname instead of the live CIB
 
-    for line in is_prop_set['stdout'].splitlines():
-        if len(line.split(':')) in [2]:
-            line_prop = line.split(':')[0].strip()
-            line_value = line.split(':')[1].strip()
-        if prop in [line_prop]:
-            if value in [line_value]:
-                prop_set_required = False
+    Example:
 
-    if not prop_set_required:
-        ret['comment'] += 'Property {0} is already set to {1}\n'.format(prop, value)
-        return ret
+    .. code-block:: yaml
+        pcs_properties__resource_defaults_to_resource-stickiness:
+            pcs.resource_defaults_to:
+                - default: resource-stickiness
+                - value: INFINITY
+                - cibname: cib_for_cluster_properties
+    '''
+    return _item_created(name=name, item='resource', item_id='{0}={1}'.format(default, value), item_type=None, show='defaults', create='defaults', extra_args=extra_args, cibname=cibname)
 
-    if __opts__['test']:
-        ret['result'] = None
-        ret['comment'] += 'Property {0} is set to be set to {1}\n'.format(prop, value)
-        return ret
 
-    prop_set = __salt__['pcs.prop_set'](prop=prop, value=value, cibfile=cibfile, extra_args=extra_args)
-    log.trace('Output of pcs.prop_set: {0}'.format(str(prop_set)))
+def resource_op_defaults_to(name, op_default, value, extra_args=None, cibname=None):
+    '''
+    Ensure a resource operation default in the cluster is set to a given value
 
-    if prop_set['retcode'] in [0]:
-        ret['comment'] += 'Property {0} is set to {1}\n'.format(prop, value)
-        ret['changes'].update({prop: value})
-    else:
-        ret['result'] = False
-        ret['comment'] += 'Failed to set property {0} to {1}\n'.format(prop, value)
+    Should be run on one cluster node only
+    (there may be races)
+    Can only be run on a node with a functional pacemaker/corosync
 
-    log.trace('ret: ' + str(ret))
+    name
+        Irrelevant, not used (recommended: pcs_properties__resource_op_defaults_to_{{op_default}})
+    op_default
+        name of the operation default resource property
+    value
+        value of the operation default resource property
+    extra_args
+        additional options for the pcs command
+    cibname
+        use a cached CIB-file named like cibname instead of the live CIB
 
-    return ret
+    Example:
+
+    .. code-block:: yaml
+        pcs_properties__resource_op_defaults_to_monitor-interval:
+            pcs.resource_op_defaults_to:
+                - op_default: monitor-interval
+                - value: 60s
+                - cibname: cib_for_cluster_properties
+    '''
+    return _item_created(name=name, item='resource', item_id='{0}={1}'.format(op_default, value), item_type=None, show=['op', 'defaults'], create=['op', 'defaults'], extra_args=extra_args, cibname=cibname)
 
 
 def stonith_created(name, stonith_id, stonith_device_type, stonith_device_options=None, cibname=None):
@@ -721,55 +759,6 @@ def stonith_created(name, stonith_id, stonith_device_type, stonith_device_option
                     - 'passwd=hoonetorg'
                 - cibname: cib_for_stonith
     '''
-#    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
-#    stonith_create_required = False
-#
-#    cibfile = None
-#    if isinstance(cibname, six.string_types):
-#        cibfile = _get_cibfile(cibname)
-#
-#    is_existing_cmd = ['pcs']
-#    if isinstance(cibfile, six.string_types):
-#        is_existing_cmd += ['-f', cibfile]
-#    is_existing_cmd += ['stonith', 'show', stonith_id]
-#
-#    is_existing = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
-#    log.trace('Output of pcs stonith show {0}: {1}'.format(stonith_id, str(is_existing)))
-#
-#    if is_existing['retcode'] in [0]:
-#        ret['comment'] += 'Stonith resource {0} is already existing\n'.format(stonith_id)
-#    else:
-#        stonith_create_required = True
-#
-#    if not stonith_create_required:
-#        return ret
-#
-#    if __opts__['test']:
-#        ret['result'] = None
-#        ret['comment'] += 'Stonith resource {0} is set to be created\n'.format(stonith_id)
-#        return ret
-#
-#    if not isinstance(stonith_device_options, (list, tuple)):
-#        stonith_device_options = []
-#
-#    stonith_create = __salt__['pcs.stonith_create'](
-#        stonith_id=stonith_id,
-#        stonith_device_type=stonith_device_type,
-#        stonith_device_options=stonith_device_options,
-#        cibfile=cibfile)
-#
-#    log.trace('Output of pcs.stonith_create: ' + str(stonith_create))
-#
-#    if stonith_create['retcode'] in [0]:
-#        ret['comment'] += 'Created stonith resource {0}\n'.format(stonith_id)
-#        ret['changes'].update({stonith_id: {'old': '', 'new': stonith_id}})
-#    else:
-#        ret['result'] = False
-#        ret['comment'] += 'Failed to create stonith resource {0}\n'.format(stonith_id)
-#
-#    log.trace('ret: ' + str(ret))
-#
-#    return ret
     return _item_created(name=name, item='stonith', item_id=stonith_id, item_type=stonith_device_type, extra_args=stonith_device_options, cibname=cibname)
 
 
@@ -804,53 +793,4 @@ def resource_created(name, resource_id, resource_type, resource_options=None, ci
                     - '--master'
                 - cibname: cib_for_galera
     '''
-#    ret = {'name': name, 'result': True, 'comment': '', 'changes': {}}
-#    resource_create_required = False
-#
-#    cibfile = None
-#    if isinstance(cibname, six.string_types):
-#        cibfile = _get_cibfile(cibname)
-#
-#    is_existing_cmd = ['pcs']
-#    if isinstance(cibfile, six.string_types):
-#        is_existing_cmd += ['-f', cibfile]
-#    is_existing_cmd += ['resource', 'show', resource_id]
-#
-#    is_existing = __salt__['cmd.run_all'](is_existing_cmd, output_loglevel='trace', python_shell=False)
-#    log.trace('Output of pcs resource show {0}: {1}'.format(resource_id, str(is_existing)))
-#
-#    if is_existing['retcode'] in [0]:
-#        ret['comment'] += 'Resource {0} is already existing\n'.format(resource_id)
-#    else:
-#        resource_create_required = True
-#
-#    if not resource_create_required:
-#        return ret
-#
-#    if __opts__['test']:
-#        ret['result'] = None
-#        ret['comment'] += 'Resource {0} is set to be created\n'.format(resource_id)
-#        return ret
-#
-#    if not isinstance(resource_options, (list, tuple)):
-#        resource_options = []
-#
-#    resource_create = __salt__['pcs.resource_create'](
-#        resource_id=resource_id,
-#        resource_type=resource_type,
-#        resource_options=resource_options,
-#        cibfile=cibfile)
-#
-#    log.trace('Output of pcs.resource_create: ' + str(resource_create))
-#
-#    if resource_create['retcode'] in [0]:
-#        ret['comment'] += 'Created resource {0}\n'.format(resource_id)
-#        ret['changes'].update({resource_id: {'old': '', 'new': resource_id}})
-#    else:
-#        ret['result'] = False
-#        ret['comment'] += 'Failed to create resource {0}\n'.format(resource_id)
-#
-#    log.trace('ret: ' + str(ret))
-#
-#    return ret
     return _item_created(name=name, item='resource', item_id=resource_id, item_type=resource_type, extra_args=resource_options, cibname=cibname)

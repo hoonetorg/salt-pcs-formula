@@ -26,7 +26,7 @@ def __virtual__():
     return False
 
 
-def item_show(item, item_id=None, extra_args=None, cibfile=None):
+def item_show(item, item_id=None, show='show', extra_args=None, cibfile=None):
     '''
     Show an item via pcs command
 
@@ -42,9 +42,20 @@ def item_show(item, item_id=None, extra_args=None, cibfile=None):
     cmd = ['pcs']
     if isinstance(cibfile, six.string_types):
         cmd += ['-f', cibfile]
-    cmd += [item, 'show']
+
+    if isinstance(item, six.string_types):
+      cmd += [item]
+    elif isinstance(item, (list, tuple)):
+      cmd += item
+
+    if isinstance(show, six.string_types):
+      cmd += [show]
+    elif isinstance(show, (list, tuple)):
+      cmd += show
+
     if isinstance(item_id, six.string_types):
         cmd += [item_id]
+
     if isinstance(extra_args, (list, tuple)):
         cmd += extra_args
 
@@ -71,7 +82,19 @@ def item_create(item, item_id, item_type, create='create', extra_args=None, cibf
     cmd = ['pcs']
     if isinstance(cibfile, six.string_types):
         cmd += ['-f', cibfile]
-    cmd += [item, create, item_id]
+
+    if isinstance(item, six.string_types):
+      cmd += [item]
+    elif isinstance(item, (list, tuple)):
+      cmd += item
+
+    if isinstance(create, six.string_types):
+      cmd += [create]
+    elif isinstance(create, (list, tuple)):
+      cmd += create
+
+    cmd += [item_id]
+
     if isinstance(item_type, six.string_types):
         cmd += [item_type]
     if isinstance(extra_args, (list, tuple)):
