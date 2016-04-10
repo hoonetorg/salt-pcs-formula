@@ -1,24 +1,49 @@
 pcs:
   lookup:
+    # _id is the minion id for orchestration 
+    # which can defer from the node name in cluster
+    # when server has multiple interfaces/IP's/hostnames
+    # !!! both values are required, even if equal
+    admin_node_id: node1.example.org
     admin_node: node1.example.org
+    node_ids:
+      - node1.example.org
+      - node2.example.org
     nodes:
       - node1.example.org
       - node2.example.org
+
+    # credential for the cluster user (default user: hacluster)
+    pcspasswd: hoonetorg
+    pcspasswd_hash: $6$....
+
     setup_extra_args:
       - --start
       - --enable
     node_add_extra_args:
       - --start
       - --enable
+
+    # cib for properties, default and op_defaults (optional)
+    cluster_settings_cib: cib_for_cluster_settings
+    properties:
+      no-quorum-policy: ignore
+    defaults:
+      resource-stickiness: INFINITY
+    op_defaults:
+      monitor-interval: 60s
+
+    # cib for creating stonith resources (optional)
+    stonith_cib: cib_for_stonith
     stonith_resources:
-      my_fence_eps:
-        stonith_id: my_fence_eps
+      eps_fence:
+        stonith_id: eps_fence
         stonith_device_type: fence_eps
         stonith_device_options:
           - pcmk_host_map=node1.example.org:01;node2.example.org:02
           - ipaddr=myepsdevice.example.org
           - power_wait=5
           - verbose=1
-          - debug=/var/log/pcsd/my_fence_eps.log
+          - debug=/var/log/pcsd/eps_fence.log
           - login=hidden
           - passwd=hoonetorg
