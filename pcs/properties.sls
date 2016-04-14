@@ -15,11 +15,11 @@ pcs_properties__prop_is_set_{{property}}:
   pcs.prop_is_set:
     - prop: {{property}}
     - value: {{value}}
+{% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - require:
       - pcs: pcs_properties__cib_created_{{pcs.cluster_settings_cib}}
     - require_in:
       - pcs: pcs_properties__cib_pushed_{{pcs.cluster_settings_cib}}
-{% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - cibname: {{pcs.cluster_settings_cib}}
 {% endif %}
 {% endfor %}
@@ -31,11 +31,11 @@ pcs_properties__resource_defaults_to_{{default}}:
   pcs.resource_defaults_to:
     - default: {{default}}
     - value: {{value}}
+{% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - require:
       - pcs: pcs_properties__cib_created_{{pcs.cluster_settings_cib}}
     - require_in:
       - pcs: pcs_properties__cib_pushed_{{pcs.cluster_settings_cib}}
-{% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - cibname: {{pcs.cluster_settings_cib}}
 {% endif %}
 {% endfor %}
@@ -47,11 +47,11 @@ pcs_properties__resource_op_defaults_to_{{op_default}}:
   pcs.resource_op_defaults_to:
     - op_default: {{op_default}}
     - value: {{value}}
+{% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - require:
       - pcs: pcs_properties__cib_created_{{pcs.cluster_settings_cib}}
     - require_in:
       - pcs: pcs_properties__cib_pushed_{{pcs.cluster_settings_cib}}
-{% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - cibname: {{pcs.cluster_settings_cib}}
 {% endif %}
 {% endfor %}

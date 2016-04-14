@@ -43,3 +43,11 @@ pcs_orchestration__stonith:
     - sls: pcs.stonith
     - require:
       - salt: pcs_orchestration__properties
+
+pcs_orchestration__resources:
+  salt.state:
+    - tgt: {{admin_node_id}}
+    - expect_minions: True
+    - sls: pcs.resources
+    - require:
+      - salt: pcs_orchestration__stonith
