@@ -11,9 +11,9 @@ pcs_setup__setup:
 
 {% for node in pcs.nodes|sort %}
 {% if node not in [ pcs.admin_node ] %}
-pcs_setup__node_add_{{node}}:
-  pcs.cluster_node_add:
+pcs_setup__node_present_{{node}}:
+  pcs.cluster_node_present:
     - node: {{node}}
-    - extra_args: {{pcs.node_add_extra_args|default([])}}
+    - extra_args: {{pcs.node_present_extra_args|default([])}}
 {% endif %}
 {% endfor %}

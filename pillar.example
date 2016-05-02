@@ -20,7 +20,7 @@ pcs:
     setup_extra_args:
       - --start
       - --enable
-    node_add_extra_args:
+    node_present_extra_args:
       - --start
       - --enable
 

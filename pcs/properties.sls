@@ -4,20 +4,20 @@
 {% from "pcs/map.jinja" import pcs with context %}
 
 {% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
-pcs_properties__cib_created_{{pcs.cluster_settings_cib}}:
-  pcs.cib_created:
+pcs_properties__cib_present_{{pcs.cluster_settings_cib}}:
+  pcs.cib_present:
     - cibname: {{pcs.cluster_settings_cib}}
 {% endif %}
 
 {% if 'properties' in pcs %}
 {% for property, value in pcs.properties.items()|sort %}
-pcs_properties__prop_is_set_{{property}}:
-  pcs.prop_is_set:
+pcs_properties__prop_has_value_{{property}}:
+  pcs.prop_has_value:
     - prop: {{property}}
     - value: {{value}}
 {% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - require:
-      - pcs: pcs_properties__cib_created_{{pcs.cluster_settings_cib}}
+      - pcs: pcs_properties__cib_present_{{pcs.cluster_settings_cib}}
     - require_in:
       - pcs: pcs_properties__cib_pushed_{{pcs.cluster_settings_cib}}
     - cibname: {{pcs.cluster_settings_cib}}
@@ -33,7 +33,7 @@ pcs_properties__resource_defaults_to_{{default}}:
     - value: {{value}}
 {% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - require:
-      - pcs: pcs_properties__cib_created_{{pcs.cluster_settings_cib}}
+      - pcs: pcs_properties__cib_present_{{pcs.cluster_settings_cib}}
     - require_in:
       - pcs: pcs_properties__cib_pushed_{{pcs.cluster_settings_cib}}
     - cibname: {{pcs.cluster_settings_cib}}
@@ -49,7 +49,7 @@ pcs_properties__resource_op_defaults_to_{{op_default}}:
     - value: {{value}}
 {% if pcs.cluster_settings_cib is defined and pcs.cluster_settings_cib %}
     - require:
-      - pcs: pcs_properties__cib_created_{{pcs.cluster_settings_cib}}
+      - pcs: pcs_properties__cib_present_{{pcs.cluster_settings_cib}}
     - require_in:
       - pcs: pcs_properties__cib_pushed_{{pcs.cluster_settings_cib}}
     - cibname: {{pcs.cluster_settings_cib}}
