@@ -8,8 +8,17 @@
             "pkgs" : 
               [
                 'pcs',
-                'fence-agents-all',
               ],
+            "repopkgspre" : 
+              [
+                'dbus',
+              ],
+            "repopkgs" : 
+              [
+                'pacemaker',
+                'pacemaker-cli-utils',
+              ],
+            "repo" : 'jessie-backports',
             "service" : {
                "name": 'pcsd',
                "state": 'running',
