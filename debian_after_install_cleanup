@@ -1,0 +1,1 @@
+salt -C '<nodes>' cmd.run 'systemctl stop pacemaker corosync; rm -Rf /etc/corosync/corosync.conf /var/lib/pacemaker/cib/*; systemctl status pacemaker corosync; ls -al /etc/corosync/corosync.conf /var/lib/pacemaker/cib/*'
