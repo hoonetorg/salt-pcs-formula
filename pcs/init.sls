@@ -2,23 +2,18 @@
 # vim: ft=sls
 
 include:
-  - pcs.install
   - pcs.user
+  - pcs.install
   - pcs.service
 
 
 extend:
-  pcs_user__user:
-    group:
+  pcs_install__pkg:
+    pkg:
       - require:
-        - pkg: pcs_install__pkg
-    user:
-      - require:
-        - pkg: pcs_install__pkg
-  pcs_service__service:
-    service:
-      - watch:
         - group: pcs_user__user
         - user: pcs_user__user
+  pcs_service__service:
+    service:
       - require:
         - pkg: pcs_install__pkg
