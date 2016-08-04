@@ -48,3 +48,8 @@ pcs_resources__cib_pushed_{{pcs.resources_cib}}:
   pcs.cib_pushed:
     - cibname: {{pcs.resources_cib}}
 {% endif %}
+
+pcs_resources__empty_sls_prevent_error:
+  cmd.run:
+    - name: true
+    - unless: true

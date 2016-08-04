@@ -26,3 +26,12 @@ pcs_install__pkg:
       - pkg: pcs_install__repopkg
 {%- endif %}
 
+{%- if salt['grains.get']('os_family') in [ 'Debian' ] %}
+pcs_install__disable_daemon_start:
+  file.managed:
+    - name: /usr/sbin/policy-rc.d
+    - user: root
+    - group: root
+    - mode: "0755"
+    - contents: "exit 101"
+{%- endif %}

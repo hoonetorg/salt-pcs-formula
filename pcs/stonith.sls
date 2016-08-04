@@ -31,3 +31,10 @@ pcs_stonith__cib_pushed_{{pcs.stonith_cib}}:
   pcs.cib_pushed:
     - cibname: {{pcs.stonith_cib}}
 {% endif %}
+
+pcs_stonith__empty_sls_prevent_error:
+  cmd.run:
+    - name: true
+    - unless: true
+
+
