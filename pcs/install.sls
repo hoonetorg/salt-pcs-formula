@@ -14,7 +14,12 @@ pcs_install__disable_daemon_start:
     - user: root
     - group: root
     - mode: "0755"
-    - contents: "exit 101"
+    - contents: |
+        #!/bin/bash
+        if [ "$2" == "rotate" ] ; then
+          exit 0
+        fi
+        exit 101
     - require:
       - group: pcs_user__user
       - user: pcs_user__user
