@@ -34,7 +34,7 @@ pcs_stonith__cib_pushed_{{pcs.stonith_cib}}:
 
 pcs_stonith__empty_sls_prevent_error:
   cmd.run:
-    - name: true
-    - unless: true
+    - name: "true"
+    - unless: "true"
 
 

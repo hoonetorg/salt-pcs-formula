@@ -65,5 +65,5 @@ pcs_properties__cib_pushed_{{pcs.cluster_settings_cib}}:
 
 pcs_properties__empty_sls_prevent_error:
   cmd.run:
-    - name: true
-    - unless: true
+    - name: "true"
+    - unless: "true"
